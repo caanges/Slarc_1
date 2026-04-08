@@ -37,10 +37,10 @@ End-to-end deep learning for localization
 ___________________
 👥 Contributors
 
-Christoffer Angestam
-Emil Ekengren
-Elwin Green
-Edvin Mörk
+Christoffer Angestam,
+Emil Ekengren,
+Elwin Green,
+Edvin Mörk,
 Malek Saleh
 
 
