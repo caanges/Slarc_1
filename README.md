@@ -1,5 +1,5 @@
 # Slarc_1
 
-Locating the UGV using camera of the UAV
-hej
+Pose estimation of the UGV using image analysis on the camera of the UAV
+
 
