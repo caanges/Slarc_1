@@ -35,6 +35,12 @@ Visual odometry
 Perspective-n-Point (PnP)
 End-to-end deep learning for localization
 
+___________________________
+## 🛠️ Setup & Installation
+
+- git clone https://github.com/caanges/Slarc_1.git
+- cd Slarc_1
+- pip install -r requirements.txt
 ___________________
 ## 👥 Contributors
 
