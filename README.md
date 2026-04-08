@@ -5,7 +5,7 @@ This project focuses on estimating the pose of an Unmanned Ground Vehicle (UGV) 
 Instead of relying on fiducial markers like AprilTag or ArUco, this approach explores natural landmark detection and feature-based methods, making the system more robust and deployable in real-world environments.
 
 _______________________________________
-⚙️ System Architecture
+## ⚙️ System Architecture
 
 UAV (Camera Platform)
 
@@ -28,19 +28,20 @@ Pose estimation
 Output relative pose (position + orientation)
 
 ______________________
-🔬 Key Concepts
+## 🔬 Key Concepts
+
 Feature detection & matching
 Visual odometry
 Perspective-n-Point (PnP)
 End-to-end deep learning for localization
 
 ___________________
-👥 Contributors
+## 👥 Contributors
 
-Christoffer Angestam
-Emil Ekengren
-Elwin Green
-Edvin Mörk
-Malek Saleh
+- Christoffer Angestam
+- Emil Ekengren
+- Elwin Green
+- Edvin Mörk
+- Malek Saleh
 
 
