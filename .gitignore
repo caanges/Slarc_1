@@ -1,0 +1,8 @@
+venv/
+UGV_venv/
+__pycache__/
+*.pyc
+*.pt
+models/
+exports/
+Data/

@@ -17,7 +17,7 @@ wheel12 = bpy.data.objects['wheel12']
 wheel21 = bpy.data.objects['wheel21']
 wheel22 = bpy.data.objects['wheel22']
 
-# Output folder (CHANGE THIS)
+# Output folder
 output_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_img\Gen_data"
 labeling_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_label\json_data"
 
