@@ -10,6 +10,9 @@ import time
 
 # Get objects
 scene = bpy.context.scene
+colection_0 = bpy.data.collections["Collection"]
+colection_1 = bpy.data.collections["Collection2"]
+
 camera = bpy.data.objects['Camera']
 ugv = bpy.data.objects['UGV']
 wheel11 = bpy.data.objects['wheel11']
@@ -94,53 +97,59 @@ def make_json_data(obj, camera, scene, pic_num):
         "camera_rotation": list(camera.rotation_euler)
         }
        
-radius = 5
-radius_1 = 40
-loop_size_r = 5
-loop_size_a = 1
-camera.location.z = 60
-camera.location.x = 0
-camera.location.y = 0
-num_of_loops = 0
-num_loop_one = 0
-camera.rotation_euler[0] = 0
-camera.rotation_euler[1] = 0
-camera.rotation_euler[2] = 0
-# Loop to generate images
+def save_json():
+    global labeling_path, dataset
+    json_path = os.path.join(labeling_path, "dataset.json")
 
-for i in range(loop_size_a):
-    direction = ugv.location + Vector((0, 10, 0)) - camera.location
-    direction_1 = ugv.location + Vector((0, 10, 0)) - SUN.location
-    camera.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
-    SUN.rotation_euler = direction_1.to_track_quat('-Z', 'Y').to_euler()
-    #camera.location.z -= 1
+    with open(json_path, "w") as f:
+        json.dump(dataset, f, indent=4)
+
+def Generate_data():
+    global ugv, wheel11, wheel12, wheel21, wheel22, SUN, camera, scene
+
+    radius = 5
+    radius_1 = 40
+    loop_size_r = 5
+    loop_size_a = 1
+    camera.location.z = 60
+    camera.location.x = 0
+    camera.location.y = 0
+    num_of_loops = 0
+    num_loop_one = 0
+    camera.rotation_euler[0] = 0
+    camera.rotation_euler[1] = 0
+    camera.rotation_euler[2] = 0
+
+    for i in range(loop_size_a):
+        direction = ugv.location + Vector((0, 10, 0)) - camera.location
+        direction_1 = ugv.location + Vector((0, 10, 0)) - SUN.location
+        camera.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
+        SUN.rotation_euler = direction_1.to_track_quat('-Z', 'Y').to_euler()
+        #camera.location.z -= 1
     
-
-    for i in range(loop_size_r):
-        angle = i * 0.1
-        SUN.location.x = radius_1 * math.cos(angle)
-        SUN.location.y = radius_1 * math.sin(angle)
-        camera.location.x = radius * math.cos(angle)
-        camera.location.y = radius * math.sin(angle)
-        camera.rotation_euler[2] = angle
-        # render image
-        img_path = os.path.join(output_path, f"img_{num_loop_one:04d}.png")
-        scene.render.filepath = img_path
-        bpy.ops.render.render(write_still=True)
+        for i in range(loop_size_r):
+            angle = i * 0.1
+            SUN.location.x = radius_1 * math.cos(angle)
+            SUN.location.y = radius_1 * math.sin(angle)
+            camera.location.x = radius * math.cos(angle)
+            camera.location.y = radius * math.sin(angle)
+            camera.rotation_euler[2] = angle
+            # render image
+            img_path = os.path.join(output_path, f"img_{num_loop_one:04d}.png")
+            scene.render.filepath = img_path
+            bpy.ops.render.render(write_still=True)
        
-        make_json_data(ugv, camera, scene, num_of_loops)
-        make_json_data(wheel11, camera, scene, num_of_loops + 1)
-        make_json_data(wheel12, camera, scene, num_of_loops + 2)
-        make_json_data(wheel21, camera, scene, num_of_loops + 3)
-        make_json_data(wheel22, camera, scene, num_of_loops + 4)
+            make_json_data(ugv, camera, scene, num_of_loops)
+            make_json_data(wheel11, camera, scene, num_of_loops + 1)
+            make_json_data(wheel12, camera, scene, num_of_loops + 2)
+            make_json_data(wheel21, camera, scene, num_of_loops + 3)
+            make_json_data(wheel22, camera, scene, num_of_loops + 4)
        
-        num_of_loops += 5
-        num_loop_one += 1
+            num_of_loops += 5
+            num_loop_one += 1
 
-json_path = os.path.join(labeling_path, "dataset.json")
+def main():
+    Generate_data()
+    print("Data Generated!")
 
-with open(json_path, "w") as f:
-    json.dump(dataset, f, indent=4)
-
-
-print("Data Generated!")
+main()
