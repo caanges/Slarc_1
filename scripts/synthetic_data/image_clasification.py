@@ -3,7 +3,7 @@ import math
 import os
 import json
 
-def load_images(pic_id):
+def load_images(pic_id, path):
     img_path =r"H:\Programmering\dva513\Slarc_1\Data\Data_img\Gen_data"
     image_id = f"img_{pic_id:04d}.png"
     full_path = os.path.join(img_path, image_id)
@@ -14,7 +14,9 @@ def load_images(pic_id):
         return
    
     load_json_data(pic_id,img)
-    show_images(img)
+    #show_images(img)
+    save_image(path, img)
+
 
 def show_images(img):
     cv2.imshow("image", img)
@@ -60,7 +62,18 @@ def load_json_data(json_id, img):
         label = data[f"{json_id_image + i}"]["object"]
         add_bbox_img(img, bbox, label)
 
-def main():
-    load_images(2)
+def save_image(path, img):
+    cv2.imwrite(path, img)
 
+def main():
+    size_of_data = 5
+    output_path = r"H:\Programmering\dva513\Slarc_1\Data\classified_data"
+    
+    for i in range(size_of_data):
+        print("\n______________________________________\n")
+        img_path = os.path.join(output_path, f"img_{i:04d}.png")
+        load_images(i, img_path)
+
+    print("Done")
+        
 main()

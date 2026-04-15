@@ -127,10 +127,9 @@ def Generate_data():
         SUN.rotation_euler = direction_1.to_track_quat('-Z', 'Y').to_euler()
         camera.rotation_euler[0] = 0
         camera.rotation_euler[1] = 0
-        #camera.location.z -= 1
     
         for i in range(loop_size_r):
-            angle = i * 0.1
+            angle = i * 0.5
             SUN.location.x = radius_1 * math.cos(angle)
             SUN.location.y = radius_1 * math.sin(angle)
             camera.location.x = radius * math.cos(angle)
@@ -146,9 +145,10 @@ def Generate_data():
             make_json_data(wheel12, camera, scene, num_of_loops + 2)
             make_json_data(wheel21, camera, scene, num_of_loops + 3)
             make_json_data(wheel22, camera, scene, num_of_loops + 4)
-       
+
             num_of_loops += 5
             num_loop_one += 1
+    save_json()
 
 def main():
     Generate_data()
