@@ -123,8 +123,10 @@ def Generate_data():
     for i in range(loop_size_a):
         direction = ugv.location + Vector((0, 10, 0)) - camera.location
         direction_1 = ugv.location + Vector((0, 10, 0)) - SUN.location
-        camera.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
+        camera.rotation_euler = direction.to_track_quat('-Z').to_euler()
         SUN.rotation_euler = direction_1.to_track_quat('-Z', 'Y').to_euler()
+        camera.rotation_euler[0] = 0
+        camera.rotation_euler[1] = 0
         #camera.location.z -= 1
     
         for i in range(loop_size_r):
