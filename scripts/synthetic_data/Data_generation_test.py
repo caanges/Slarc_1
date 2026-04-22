@@ -11,14 +11,6 @@ import time
 # Get objects
 scene = bpy.context.scene
 
-camera = bpy.data.objects['Camera.000']
-ugv = bpy.data.objects['UGV.000']
-wheel11 = bpy.data.objects['wheel11.000']
-wheel12 = bpy.data.objects['wheel12.000']
-wheel21 = bpy.data.objects['wheel21.000']
-wheel22 = bpy.data.objects['wheel22.000']
-SUN = bpy.data.objects['Sun.000']
-
 # Output folder
 output_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_img\Gen_data"
 labeling_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_label\json_data"
@@ -65,7 +57,6 @@ def get_bbox(obj, camera, scene):
     return xmin, xmax, ymin, ymax
 
 def change_of_scene(collection_id):
-    #global ugv, wheel11, wheel12, wheel21, wheel22, SUN, camera, scene
     collection_0 = bpy.data.collections["Collection"]
     collection_1 = bpy.data.collections["Collection2"]
     collection_2 = bpy.data.collections["Collection3"]
@@ -82,18 +73,12 @@ def change_of_scene(collection_id):
         collection_0.hide_render = True
         collection_1.hide_render = True
         collection_2.hide_render = False
+    
 
-    object_index = collection_id 
-    camera = bpy.data.objects[f'Camera.{object_index:03d}']
-    ugv = bpy.data.objects[f'UGV.{object_index:03d}']
-    wheel11 = bpy.data.objects[f'wheel11.{object_index:03d}']
-    wheel12 = bpy.data.objects[f'wheel12.{object_index:03d}']
-    wheel21 = bpy.data.objects[f'wheel21.{object_index:03d}']
-    wheel22 = bpy.data.objects[f'wheel22.{object_index:03d}']
-    SUN = bpy.data.objects[f'Sun.{object_index:03d}']
-
-def make_json_data(obj, camera, scene, pic_num):
+def make_json_data(obj, camera, scene):
     xmin, xmax, ymin, ymax = get_bbox(obj, camera, scene)
+
+    global_id = len(dataset)
 
     # convert to YOLO format
     x_center = (xmin + xmax) / 2 / img_width
@@ -102,14 +87,14 @@ def make_json_data(obj, camera, scene, pic_num):
     h = (ymax - ymin) / img_height
    
     if visibility(obj, camera, scene):
-        dataset[pic_num] = {
+        dataset[global_id] = {
         "object": obj.name,
         "bbox": [x_center, y_center, w, h],
         "camera_location": list(camera.location),
         "camera_rotation": list(camera.rotation_euler)
         }
     else:
-        dataset[pic_num] = {
+        dataset[global_id] = {
         "object": "ignore",
         "bbox": [x_center, y_center, w, h],
         "camera_location": list(camera.location),
@@ -123,14 +108,12 @@ def save_json():
     with open(json_path, "w") as f:
         json.dump(dataset, f, indent=4)
 
-def Generate_data(num):
-    global ugv, wheel11, wheel12, wheel21, wheel22, SUN, camera, scene
-
-    radius = 5
-    radius_1 = 40
+def Generate_data(num, ugv, wheel11, wheel12, wheel21, wheel22, SUN, camera, scene):
+    radius = 2
+    radius_1 = 20
     loop_size_r = 5
     loop_size_a = 1
-    camera.location.z = 60
+    camera.location.z = 20
     camera.location.x = 0
     camera.location.y = 0
     num_of_loops = 0
@@ -157,26 +140,30 @@ def Generate_data(num):
             scene.render.filepath = img_path
             bpy.ops.render.render(write_still=True)
        
-            make_json_data(ugv, camera, scene, num_of_loops)
-            make_json_data(wheel11, camera, scene, num_of_loops + 1)
-            make_json_data(wheel12, camera, scene, num_of_loops + 2)
-            make_json_data(wheel21, camera, scene, num_of_loops + 3)
-            make_json_data(wheel22, camera, scene, num_of_loops + 4)
+            make_json_data(ugv, camera, scene)
+            make_json_data(wheel11, camera, scene)
+            make_json_data(wheel12, camera, scene)
+            make_json_data(wheel21, camera, scene)
+            make_json_data(wheel22, camera, scene)
 
             num_of_loops += 5
             num_loop_one += 1
 
-
 def main():
-    for i in range(1, 3):
-        change_of_scene(i)
-        Generate_data(i)
+    #global ugv, wheel11, wheel12, wheel21, wheel22, SUN, camera, scene
+    for i in range(0, 3):
+        camera = bpy.data.objects[f'Camera.{i:03d}']
+        ugv = bpy.data.objects[f'UGV.{i:03d}']
+        wheel11 = bpy.data.objects[f'wheel11.{i:03d}']
+        wheel12 = bpy.data.objects[f'wheel12.{i:03d}']
+        wheel21 = bpy.data.objects[f'wheel21.{i:03d}']
+        wheel22 = bpy.data.objects[f'wheel22.{i:03d}']
+        SUN = bpy.data.objects[f'Sun.{i:03d}']
+        scene.camera = camera
+        change_of_scene(i + 1)
+        Generate_data(i, ugv, wheel11, wheel12, wheel21, wheel22, SUN, camera, scene)
     
     save_json()
     print("Data Generated!")
 
 main()
-
-'''
-for each collection make a new json_file for that collection in order to keep the json file well structured
-'''
