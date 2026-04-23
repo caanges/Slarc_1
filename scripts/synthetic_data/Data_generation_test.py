@@ -20,24 +20,10 @@ dataset = {}
 img_width = scene.render.resolution_x
 img_height = scene.render.resolution_y
 
-def visibility(obj, camera,scene):
-    depsgraph = bpy.context.evaluated_depsgraph_get()
-    origin = camera.location
-    target = obj.location
-    direction = (target - origin).normalized()
-
-    hit, loc, normal, index, hit_obj, matrix = scene.ray_cast(
-            depsgraph, origin, direction
-            )
-    if hit:
-        return True
-    return False
-
 def get_bbox(obj, camera, scene):
 
     coords = []
 
-    # get 8 corners of bounding box
     for corner in obj.bound_box:
         world_coord = obj.matrix_world @ mathutils.Vector(corner)
 
@@ -60,20 +46,28 @@ def change_of_scene(collection_id):
     collection_0 = bpy.data.collections["Collection"]
     collection_1 = bpy.data.collections["Collection2"]
     collection_2 = bpy.data.collections["Collection3"]
+    collection_3 = bpy.data.collections["Collection4"]
 
     if collection_id == 1:
         collection_0.hide_render = False
         collection_1.hide_render = True
         collection_2.hide_render = True
+        collection_3.hide_render = True
     elif collection_id == 2:
         collection_0.hide_render = True
         collection_1.hide_render = False
         collection_2.hide_render = True
+        collection_3.hide_render = True
     elif collection_id == 3:
         collection_0.hide_render = True
         collection_1.hide_render = True
         collection_2.hide_render = False
-    
+        collection_3.hide_render = True
+    elif collection_id == 4:
+        collection_0.hide_render = True
+        collection_1.hide_render = True
+        collection_2.hide_render = True
+        collection_3.hide_render = False
 
 def make_json_data(obj, camera, scene):
     xmin, xmax, ymin, ymax = get_bbox(obj, camera, scene)
@@ -86,20 +80,12 @@ def make_json_data(obj, camera, scene):
     w = (xmax - xmin) / img_width
     h = (ymax - ymin) / img_height
    
-    if visibility(obj, camera, scene):
-        dataset[global_id] = {
-        "object": obj.name,
-        "bbox": [x_center, y_center, w, h],
-        "camera_location": list(camera.location),
-        "camera_rotation": list(camera.rotation_euler)
-        }
-    else:
-        dataset[global_id] = {
-        "object": "ignore",
-        "bbox": [x_center, y_center, w, h],
-        "camera_location": list(camera.location),
-        "camera_rotation": list(camera.rotation_euler)
-        }
+    dataset[global_id] = {
+    "object": obj.name,
+    "bbox": [x_center, y_center, w, h],
+    "camera_location": list(camera.location),
+    "camera_rotation": list(camera.rotation_euler)
+    }
        
 def save_json():
     global labeling_path, dataset
@@ -107,6 +93,10 @@ def save_json():
 
     with open(json_path, "w") as f:
         json.dump(dataset, f, indent=4)
+
+def change_sun(SUN):
+    strength = random.uniform(0.1, 20)
+    SUN.data.energy = strength
 
 def Generate_data(num, ugv, wheel11, wheel12, wheel21, wheel22, SUN, camera, scene):
     radius = 2
@@ -131,10 +121,12 @@ def Generate_data(num, ugv, wheel11, wheel12, wheel21, wheel22, SUN, camera, sce
         camera.rotation_euler[1] = 0
     
         for i in range(loop_size_r):
+            change_sun(SUN)
             angle = i * 0.5
             camera.location.x = radius * math.cos(angle)
             camera.location.y = radius * math.sin(angle)
             camera.rotation_euler[2] = angle
+
             # render image
             img_path = os.path.join(output_path, f"img{num}_{num_loop_one:04d}.png")
             scene.render.filepath = img_path
@@ -151,7 +143,8 @@ def Generate_data(num, ugv, wheel11, wheel12, wheel21, wheel22, SUN, camera, sce
 
 def main():
     #global ugv, wheel11, wheel12, wheel21, wheel22, SUN, camera, scene
-    for i in range(0, 3):
+    number_off_scenes = 4
+    for i in range(0, number_off_scenes):
         camera = bpy.data.objects[f'Camera.{i:03d}']
         ugv = bpy.data.objects[f'UGV.{i:03d}']
         wheel11 = bpy.data.objects[f'wheel11.{i:03d}']
