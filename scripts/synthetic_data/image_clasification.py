@@ -37,7 +37,7 @@ def add_bbox_img(img, bbox, label):
     x2 = int(x_center + bw/2)
     y2 = int(y_center + bh/2)
 
-    if label == 'UGV':
+    if label.startswith('UGV'):
         cv2.rectangle(img, (x1,y1), (x2,y2), (255, 255, 255), 3)
     else:
         cv2.rectangle(img, (x1,y1), (x2,y2), (0, 255, 0), 2)
@@ -49,17 +49,16 @@ def load_json_data(json_id, img, labeling_id):
     global temp_list
     json_path =r"H:\Programmering\dva513\Slarc_1\Data\Data_label\json_data\dataset.json"
    
-    json_id_image = ((json_id * labeling_id) * 5)
-
     with open(json_path, "r") as file:
         data = json.load(file)
 
     data_list = list(data.values())
 
-    for i in range(5):
-        print(data_list[json_id_image + i])
-        bbox = data[f"{json_id_image + i}"]["bbox"]
-        label = data[f"{json_id_image + i}"]["object"]
+    for i in range(0, 5):
+        index = labeling_id * 25 + json_id * 5 + i
+        print(index, data_list[index])
+        bbox = data[f"{index}"]["bbox"]
+        label = data[f"{index}"]["object"]
         add_bbox_img(img, bbox, label)
 
 def save_image(path, img):
@@ -68,7 +67,7 @@ def save_image(path, img):
 def main():
     size_of_data = 5
     output_path = r"H:\Programmering\dva513\Slarc_1\Data\classified_data"
-    for j in range(0, 2):
+    for j in range(0, 3):
         for i in range(size_of_data):
             print("\n______________________________________\n")
             img_path = os.path.join(output_path, f"img{j}_{i:04d}.png")
