@@ -41,6 +41,8 @@ with dai.Pipeline() as pipeline:
 
     pipeline.start()
 
+    img_id = 0
+    img_path = ""
     while pipeline.isRunning():
         frame = image_queue.get().getCvFrame()
         tracked_features = feature_queue.get().trackedFeatures
@@ -52,6 +54,10 @@ with dai.Pipeline() as pipeline:
             cv2.circle(frame, (x, y), 2, (0, 0, 255), -1)
 
         cv2.imshow("Feature Points", frame)
+
+        if cv2.waitKey(1) == ord(' ')
+            image_path = os.path.join(img_path, f"img_{img_id:03d}.png")
+            cv2.imwrite(img_path)
 
         if cv2.waitKey(1) == ord("q"):
             break
