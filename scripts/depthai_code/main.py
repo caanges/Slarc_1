@@ -1,7 +1,12 @@
 import cv2
 import depthai as dai
+from pathlib import Path
+
+SAVE_DIR = Path(r"C:\Users\edvin\OneDrive\Skrivbord") #change to where you want the pictures
+SAVE_DIR.mkdir(exist_ok=True)
 
 print("Press 'q' to quit")
+print("Press ENTER to save image.")
 
 with dai.Pipeline() as pipeline:
     # Camera
@@ -41,6 +46,8 @@ with dai.Pipeline() as pipeline:
 
     pipeline.start()
 
+    image_number = 1
+
     while pipeline.isRunning():
         frame = image_queue.get().getCvFrame()
         tracked_features = feature_queue.get().trackedFeatures
@@ -52,6 +59,14 @@ with dai.Pipeline() as pipeline:
             cv2.circle(frame, (x, y), 2, (0, 0, 255), -1)
 
         cv2.imshow("Feature Points", frame)
+
+        key = cv2.waitKey(1) & 0xFF
+
+        if key == 13:  # ENTER
+            filename = SAVE_DIR / f"image{image_number:03d}.png"
+            cv2.imwrite(str(filename), frame)
+            print(f"Saved {filename}")
+            image_number += 1
 
         if cv2.waitKey(1) == ord("q"):
             break
