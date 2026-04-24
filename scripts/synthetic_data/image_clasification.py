@@ -14,16 +14,10 @@ def load_images(pic_id, path, labeling_id):
         return
    
     load_json_data(pic_id,img,labeling_id)
-    #show_images(img)
     save_image(path, img)
 
-
-def show_images(img):
-    cv2.imshow("image", img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
 def add_bbox_img(img, bbox, label):
+    #get the height and width of the image and get the center coordinates of the bounding box
     h, w, _ = img.shape
     x_center, y_center, bw, bh = bbox
 
@@ -32,6 +26,7 @@ def add_bbox_img(img, bbox, label):
     bw *= w
     bh *= h
 
+    #get the two coordinates of two coorners which defines the bounding box
     x1 = int(x_center - bw/2)
     y1 = int(y_center - bh/2)
     x2 = int(x_center + bw/2)
@@ -53,9 +48,10 @@ def load_json_data(json_id, img, labeling_id):
         data = json.load(file)
 
     data_list = list(data.values())
-
+    a_o_i = 5
     for i in range(0, 5):
-        index = labeling_id * 25 + json_id * 5 + i
+        #get the rigth index when reading the data
+        index = labeling_id * 5 * a_o_i  + json_id * 5 + i
         print(index, data_list[index])
         bbox = data[f"{index}"]["bbox"]
         label = data[f"{index}"]["object"]
