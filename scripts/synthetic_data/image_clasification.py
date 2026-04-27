@@ -33,12 +33,9 @@ def add_bbox_img(img, bbox, label):
     y2 = int(y_center + bh/2)
 
     if label.startswith('UGV'):
-        cv2.rectangle(img, (x1,y1), (x2,y2), (255, 255, 255), 3)
+        cv2.rectangle(img, (x1,y1), (x2,y2), (255, 255, 255), 1)
     else:
-        cv2.rectangle(img, (x1,y1), (x2,y2), (0, 255, 0), 2)
-        cv2.putText(img, label, (x1, y1 - 5),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5, (255, 255, 255), 1)
+        cv2.rectangle(img, (x1,y1), (x2,y2), (0, 255, 0), 1)
 
 def load_json_data(json_id, img, labeling_id):
     global temp_list
@@ -48,10 +45,11 @@ def load_json_data(json_id, img, labeling_id):
         data = json.load(file)
 
     data_list = list(data.values())
-    a_o_i = 5
-    for i in range(0, 5):
+    num_off_attr = 80
+    attr_pic = 16
+    for i in range(0, attr_pic):
         #get the rigth index when reading the data
-        index = labeling_id * 5 * a_o_i  + json_id * 5 + i
+        index = labeling_id * num_off_attr + json_id * attr_pic + i
         print(index, data_list[index])
         bbox = data[f"{index}"]["bbox"]
         label = data[f"{index}"]["object"]
