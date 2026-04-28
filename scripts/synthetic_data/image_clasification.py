@@ -1,74 +1,77 @@
 import cv2
 import math
 import os
-import json
 
-def load_images(pic_id, path, labeling_id):
+OUT_DIR = r"H:\Programmering\dva513\Slarc_1\Data\classified_data"
+
+def load_data(pic_id, labeling_id):
     img_path =r"H:\Programmering\dva513\Slarc_1\Data\Data_img\Gen_data"
     image_id = f"img{labeling_id}_{pic_id:04d}.png"
     full_path = os.path.join(img_path, image_id)
 
+    labeling_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_img\Gen_data"
+    labeling_id = f"img{labeling_id}_{pic_id:04d}.txt"
+    ful_label_path = os.path.join(labeling_path, labeling_id)
+
     img = cv2.imread(full_path)
+    h, w, _ = img.shape
     if img is None:
         print("Failed to load image")
         return
-   
-    load_json_data(pic_id,img,labeling_id)
-    save_image(path, img)
 
-def add_bbox_img(img, bbox, label):
-    #get the height and width of the image and get the center coordinates of the bounding box
-    h, w, _ = img.shape
-    x_center, y_center, bw, bh = bbox
+    print("\n________________\n")
+    print(labeling_id)
+    print(image_id)
 
-    x_center *= w
-    y_center *= h
-    bw *= w
-    bh *= h
+    create_data(ful_label_path, image_id, img, h, w)
 
-    #get the two coordinates of two coorners which defines the bounding box
-    x1 = int(x_center - bw/2)
-    y1 = int(y_center - bh/2)
-    x2 = int(x_center + bw/2)
-    y2 = int(y_center + bh/2)
+def denorm(x, y, w, h):
+    return int(x * w), int(y * h)
 
-    if label.startswith('UGV'):
-        cv2.rectangle(img, (x1,y1), (x2,y2), (255, 255, 255), 3)
-    else:
-        cv2.rectangle(img, (x1,y1), (x2,y2), (0, 255, 0), 2)
-        cv2.putText(img, label, (x1, y1 - 5),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5, (255, 255, 255), 1)
+def create_data(ful_label_path, image_id, img, h, w):
+    with open(ful_label_path, "r") as f:
 
-def load_json_data(json_id, img, labeling_id):
-    global temp_list
-    json_path =r"H:\Programmering\dva513\Slarc_1\Data\Data_label\json_data\dataset.json"
-   
-    with open(json_path, "r") as file:
-        data = json.load(file)
+        for line in f.readlines():
+            data = list(map(float, line.strip().split()))
 
-    data_list = list(data.values())
-    a_o_i = 5
-    for i in range(0, 5):
-        #get the rigth index when reading the data
-        index = labeling_id * 5 * a_o_i  + json_id * 5 + i
-        print(index, data_list[index])
-        bbox = data[f"{index}"]["bbox"]
-        label = data[f"{index}"]["object"]
-        add_bbox_img(img, bbox, label)
+            class_id = int(data[0])
+            cx, cy, bw, bh = data[1:5]
 
-def save_image(path, img):
-    cv2.imwrite(path, img)
+            x1 = int((cx - bw / 2) * w)
+            y1 = int((cy - bh / 2) * h)
+            x2 = int((cx + bw / 2) * w)
+            y2 = int((cy + bh / 2) * h)
+
+            # draw bbox
+            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+            # ---- keypoints ----
+            keypoints = data[5:]
+
+            for i in range(0, len(keypoints), 3):
+                x, y, v = keypoints[i:i+3]
+
+                if v == 0:
+                    continue  # invisible / ignore
+
+                px, py = denorm(x, y, w, h)
+
+                color = (0, 0, 255) if v == 2 else (255, 0, 0)
+
+                cv2.circle(img, (px, py), 1, color, -1)
+            
+            out_path = os.path.join(OUT_DIR, image_id)
+            save_img(out_path, img)
+
+def save_img(out_path, img):
+    cv2.imwrite(out_path, img)
 
 def main():
-    size_of_data = 5
-    output_path = r"H:\Programmering\dva513\Slarc_1\Data\classified_data"
-    for j in range(0, 4):
-        for i in range(size_of_data):
-            print("\n______________________________________\n")
-            img_path = os.path.join(output_path, f"img{j}_{i:04d}.png")
-            load_images(i, img_path, j)
-
+    number_of_scenes = 5
+    size_per_scene = 5
+    for j in range(0, number_of_scenes):
+        for i in range(0, size_per_scene):
+            load_data(i, j)
     print("Done")
         
 main()
