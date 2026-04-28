@@ -16,38 +16,35 @@ scene = bpy.context.scene
 output_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_img\Gen_data"
 labeling_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_label\json_data"
 
-dataset = {}  
+object_data = []
+class_map = {}
 
 img_width = scene.render.resolution_x
 img_height = scene.render.resolution_y
 
 def disable_collection(collection, state):
     for obj in collection.all_objects:
-        obj.hide_set(state)        
+        obj.hide_set(state)     
+    collection.hide_render = state    
 
 def visiblity(obj, camera, scene):
-    depsgraph = bpy.context.evaluated_depsgraph_get()
-    cam_loc = camera.matrix_world.translation
-    obj_loc = obj.matrix_world.translation
+    for corner in obj.bound_box:
+        world_coord = obj.matrix_world @ Vector(corner)
+        co_2d = world_to_camera_view(scene, camera, world_coord)
 
-    direction = (obj_loc - cam_loc).normalized()
-    distance = (obj_loc - cam_loc).length
+        if 0 <= co_2d.x <= 1 and 0 <= co_2d.y <= 1 and co_2d.z > 0:
+            return 2
+    return 0
 
-    hit, location, normal, index, hit_obj, matrix = scene.ray_cast(
-    depsgraph,
-    cam_loc,
-    direction,
-    distance=distance
-    )
-
-    if hit:
-        if hit_obj.name == obj.name:
-            return 1
-        else:
-            return 0
+def map_objects(obj):
+    name = obj.name.split('.')[0]
+    name_ugv = obj.name.split('.')[0]
+    if name.startswith("KEYPOINT_"):
+        KEYPOINT_id = int(name.split("_")[1])
+        class_map[name] = KEYPOINT_id
     else:
-        return 0
-
+        UGV_id = 15
+        class_map[name_ugv] = UGV_id
 
 def get_bbox(obj, camera, scene):
 
@@ -76,53 +73,53 @@ def change_of_scene(collection_id):
     collection_1 = bpy.data.collections["Collection2"]
     collection_2 = bpy.data.collections["Collection3"]
     collection_3 = bpy.data.collections["Collection4"]
+    collection_4 = bpy.data.collections["Collection5"]
 
     if collection_id == 1:
-        collection_0.hide_render = False
-        collection_1.hide_render = True
-        collection_2.hide_render = True
-        collection_3.hide_render = True
-        
         disable_collection(collection_0, False)
         disable_collection(collection_1, True)
         disable_collection(collection_2, True)
         disable_collection(collection_3, True)
+        disable_collection(collection_4, True)
     elif collection_id == 2:
-        collection_0.hide_render = True
-        collection_1.hide_render = False
-        collection_2.hide_render = True
-        collection_3.hide_render = True
-
         disable_collection(collection_0, True)
         disable_collection(collection_1, False)
         disable_collection(collection_2, True)
         disable_collection(collection_3, True)
+        disable_collection(collection_4, True)
     elif collection_id == 3:
-        collection_0.hide_render = True
-        collection_1.hide_render = True
-        collection_2.hide_render = False
-        collection_3.hide_render = True
-
         disable_collection(collection_0, True)
         disable_collection(collection_1, True)
         disable_collection(collection_2, False)
         disable_collection(collection_3, True)
+        disable_collection(collection_4, True)
     elif collection_id == 4:
-        collection_0.hide_render = True
-        collection_1.hide_render = True
-        collection_2.hide_render = True
-        collection_3.hide_render = False
-
         disable_collection(collection_0, True)
         disable_collection(collection_1, True)
         disable_collection(collection_2, True)
         disable_collection(collection_3, False)
+        disable_collection(collection_4, True)
+    elif collection_id == 5:
+        disable_collection(collection_0, True)
+        disable_collection(collection_1, True)
+        disable_collection(collection_2, True)
+        disable_collection(collection_3, True)
+        disable_collection(collection_4, False)
 
-def make_json_data(obj, camera, scene):
+def save_yolo_form(img_path, bbox, keypoints):
+    label_path = img_path.replace(".png", ".txt")
+    
+    class_id = 0
+    cx, cy, w, h = bbox
+
+    with open(label_path, "w") as f:
+        line = f"{class_id} {cx} {cy} {w} {h} "
+        line += " ".join(map(str, keypoints))
+        f.write(line + "\n")
+
+def object_data_app(obj, camera, scene):
+
     xmin, xmax, ymin, ymax = get_bbox(obj, camera, scene)
-
-    #match the new data place with the place of the existing data
-    global_id = len(dataset)
 
     # convert to YOLO format
     x_center = (xmin + xmax) / 2 / img_width
@@ -131,22 +128,13 @@ def make_json_data(obj, camera, scene):
     h = (ymax - ymin) / img_height
 
     check = visiblity(obj, camera, scene)
-   
-    #save data for each object 
-    dataset[global_id] = {
-    "object": obj.name,
-    "bbox": [x_center, y_center, w, h],
-    "camera_location": list(camera.location),
-    "camera_rotation": list(camera.rotation_euler),
-    "visibility": check
-    }
-       
-def save_json():
-    global labeling_path, dataset
-    json_path = os.path.join(labeling_path, "dataset.json")
 
-    with open(json_path, "w") as f:
-        json.dump(dataset, f, indent=4)
+    object_data.append({
+        "object": obj.name,
+        "bbox": [x_center, y_center, w, h],
+        "visibility": check
+    })
+
 
 def change_sun(SUN):
     strength = random.uniform(0.1, 20)
@@ -180,9 +168,30 @@ def Generate_data(num, ugv, key_points, SUN, camera, scene):
         camera.rotation_euler[1] = 0
     
         for i in range(loop_size_r):
+            object_data.clear()
+            xmin, xmax, ymin, ymax = get_bbox(ugv, camera, scene)
+
+            cx = (xmin + xmax) / 2 / img_width
+            cy = (ymin + ymax) / 2 / img_height
+            w  = (xmax - xmin) / img_width
+            h  = (ymax - ymin) / img_height
             #change the sun on a presett intervall Ex. 1:10
             if (i % 10) == 0:
                 change_sun(SUN)
+
+
+            key_point_list = []
+            for i in range(15):
+                kp = key_points[i]
+
+                xmin, xmax, ymin, ymax = get_bbox(kp, camera, scene)
+
+                x = (xmin + xmax) / 2 / img_width
+                y = (ymin + ymax) / 2 / img_height
+
+                vis = visiblity(kp, camera, scene)
+
+                key_point_list.extend([x,y,vis])
 
             #change the angle and rotation of the camera around the 'UGV'
             angle = i * 0.5
@@ -194,19 +203,19 @@ def Generate_data(num, ugv, key_points, SUN, camera, scene):
             img_path = os.path.join(output_path, f"img{num}_{num_loop_one:04d}.png")
             scene.render.filepath = img_path
             bpy.ops.render.render(write_still=True)
-       
-            #make the Json data for each object
-            make_json_data(ugv, camera, scene)
-            for i in range(0, num_attr):
-                make_json_data(key_points[i], camera, scene)
 
             #increase num_of_loops by five to match the amount of parameters we are making data for 
-            num_of_loops += 15
+
+            for kp in key_points.values():
+                object_data_app(kp, camera, scene)
+
+            bbox = [cx, cy, w, h]
+            save_yolo_form(img_path, bbox, key_point_list)
             num_loop_one += 1
 
 def main():
     #set the number of scenes existing
-    number_off_scenes = 4
+    number_off_scenes = 5
     num_attr = 15
     key_points = {}
     for i in range(0, number_off_scenes):
@@ -215,6 +224,7 @@ def main():
         ugv = bpy.data.objects[f'UGV.{i:03d}']
         for j in range(0, num_attr):
             key_points[j] = bpy.data.objects[f'KEYPOINT_{j}.{i:03d}']
+            map_objects(key_points[j])
         
         SUN = bpy.data.objects[f'Zun.{i:03d}']
         #change the camera so it does not keep the data from the previos data
@@ -222,7 +232,7 @@ def main():
         change_of_scene(i + 1)
         Generate_data(i, ugv, key_points, SUN, camera, scene)
     #save the json file when done with generating all the picture and correctly appending the Json data
-    save_json()
+    
     print("Data Generated!")
 
 main()

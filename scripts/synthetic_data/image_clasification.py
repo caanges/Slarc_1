@@ -61,7 +61,7 @@ def save_image(path, img):
 def main():
     size_of_data = 5
     output_path = r"H:\Programmering\dva513\Slarc_1\Data\classified_data"
-    for j in range(0, 4):
+    for j in range(0, 5):
         for i in range(size_of_data):
             print("\n______________________________________\n")
             img_path = os.path.join(output_path, f"img{j}_{i:04d}.png")
