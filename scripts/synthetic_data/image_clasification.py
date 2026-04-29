@@ -5,11 +5,11 @@ import os
 OUT_DIR = r"H:\Programmering\dva513\Slarc_1\Data\classified_data"
 
 def load_data(pic_id, labeling_id):
-    img_path =r"H:\Programmering\dva513\Slarc_1\Data\Data_img\Gen_data"
+    img_path =r"H:\Programmering\dva513\Slarc_1\Data\Data_img\Gen_data\images"
     image_id = f"img{labeling_id}_{pic_id:04d}.png"
     full_path = os.path.join(img_path, image_id)
 
-    labeling_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_img\Gen_data"
+    labeling_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_img\Gen_data\text"
     labeling_id = f"img{labeling_id}_{pic_id:04d}.txt"
     ful_label_path = os.path.join(labeling_path, labeling_id)
 
@@ -51,12 +51,14 @@ def create_data(ful_label_path, image_id, img, h, w):
             for i in range(0, len(keypoints), 3):
                 x, y, v = keypoints[i:i+3]
 
-                if v == 0:
-                    continue  # invisible / ignore
-
                 px, py = denorm(x, y, w, h)
 
-                color = (0, 0, 255) if v == 2 else (255, 0, 0)
+                if v == 2:
+                    color = (0, 255, 0)  
+                elif v == 1:
+                    color = (255, 0, 0)
+                elif v == 0:
+                    color = (0, 0, 255)
 
                 cv2.circle(img, (px, py), 1, color, -1)
             
