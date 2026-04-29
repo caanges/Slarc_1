@@ -6,3 +6,6 @@ __pycache__/
 models/
 exports/
 Data/
+yolo-env/
+runs/
+
