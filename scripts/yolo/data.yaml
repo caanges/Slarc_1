@@ -1,0 +1,9 @@
+path: C:\Users\egn23014\Downloads\Dataset-20260429T113115Z-3-001\Dataset
+
+train: images/train
+val: images/val
+
+names:
+  0: object
+
+kpt_shape: [13, 3]
