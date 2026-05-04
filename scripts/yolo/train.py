@@ -7,11 +7,11 @@ def main():
 
     # Train
     model.train(
-        data="scripts/yolo/data.yaml",  # path to your dataset config
+        data="data.yaml",  # path to your dataset config
         epochs=100,
         imgsz=640,
         batch=16,
-        device=0,           # use "cpu" if no GPU
+        device="cpu",           # use "cpu" if no GPU
         workers=4,
         project="runs/pose",
         name="yolov8n_custom"

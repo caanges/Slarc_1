@@ -1,4 +1,4 @@
-path: C:\Users\egn23014\Downloads\Dataset-20260429T113115Z-3-001\Dataset
+path: C:\Users\egn23014\Downloads\dataset\dataset #kan ändras, ska se labels och images
 
 train: images/train
 val: images/val
