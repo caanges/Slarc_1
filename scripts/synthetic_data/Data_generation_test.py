@@ -13,7 +13,7 @@ import math
 scene = bpy.context.scene
 
 # Output folder
-output_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_img\Gen_data"
+output_path = r"C:\Data_dva513\Data\Data_img\Gen_data"
 labeling_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_label\json_data"
 
 object_data = []
@@ -59,7 +59,7 @@ def visiblity(obj, camera, scene):
             if hit_obj == obj:
                 return 2
             if hit_obj != obj:
-                return 1
+                return 0
     
     return 0
 
@@ -163,18 +163,30 @@ def object_data_app(obj, camera, scene):
     })
 
 
-def change_sun(SUN):
-    strength = random.uniform(0.1, 20)
-    SUN.data.energy = strength
-    angle = random.uniform(0, 10)
-    SUN.data.angle = math.pi * math.cos(angle)
+def change_sun(SUN, target, i):
+    #strength = random.uniform(0.5, 10)
+    SUN.data.energy = 5
+    
+    radius = 10
+    angle = i * 0.5
+
+    x = target.location.x + radius * math.cos(angle)
+    y = target.location.y + radius * math.sin(angle)
+    z = target.location.z + 10 * abs(math.sin(angle)) 
+
+    sun_pos = mathutils.Vector((x, y, z))
+    direction = target.location - sun_pos
+    SUN.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
+
+    bpy.context.view_layer.update()
+
 
 def Generate_data(num, ugv, key_points, SUN, camera, scene):
     #initialize all the parameters
     radius = 2
     radius_1 = 20
-    loop_size_r = 5
-    loop_size_a = 1
+    loop_size_r = 50
+    loop_size_a = 5
     num_attr = 15
     camera.location.z = 20
     camera.location.x = 0
@@ -193,17 +205,15 @@ def Generate_data(num, ugv, key_points, SUN, camera, scene):
         SUN.rotation_euler = direction_1.to_track_quat('-Z', 'Y').to_euler()
         camera.rotation_euler[0] = 0
         camera.rotation_euler[1] = 0
+
+        change_sun(SUN, ugv, i)
     
         for j in range(loop_size_r):
             scene.view_layers.update()
             object_data.clear()
 
-            #change the sun on a presett intervall Ex. 1:10
-            if (j % 10) == 0:
-                change_sun(SUN)
-
             #change the angle and rotation of the camera around the 'UGV'
-            angle = j * 0.5
+            angle = j * 0.1
             camera.location.x = radius * math.cos(angle)
             camera.location.y = radius * math.sin(angle)
             camera.rotation_euler[2] = angle
@@ -218,7 +228,7 @@ def Generate_data(num, ugv, key_points, SUN, camera, scene):
             h  = (ymax - ymin) / img_height
 
             key_point_list = []
-            for k in range(15):
+            for k in range(13):
                 kp = key_points[k]
 
                 xmin, xmax, ymin, ymax = get_bbox(kp, camera, scene)
@@ -254,7 +264,7 @@ def Generate_data(num, ugv, key_points, SUN, camera, scene):
 def main():
     #set the number of scenes existing
     number_off_scenes = 5
-    num_attr = 15
+    num_attr = 13
     key_points = {}
     for i in range(0, number_off_scenes):
         #change the object to be meassured each time the scene changes
