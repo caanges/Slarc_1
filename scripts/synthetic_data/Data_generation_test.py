@@ -13,7 +13,7 @@ import math
 scene = bpy.context.scene
 
 # Output folder
-output_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_img\Gen_data"
+output_path = r"C:\Data_dva513\Data\Data_img\Gen_data"
 labeling_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_label\json_data"
 
 object_data = []
@@ -28,16 +28,40 @@ def disable_collection(collection, state):
     collection.hide_render = state    
 
 def visiblity(obj, camera, scene):
-    for corner in obj.bound_box:
-        world_coord = obj.matrix_world @ Vector(corner)
-        co_2d = world_to_camera_view(scene, camera, world_coord)
+    scene.view_layers.update()
+    depsgraph = bpy.context.evaluated_depsgraph_get()
 
-        if 0 <= co_2d.x <= 1 and 0 <= co_2d.y <= 1 and co_2d.z > 0:
-            return 2  # visible
-        elif co_2d.z > 0:
-            return 1  # in front but outside frame
-        else:
-            return 0  # behind camera
+    target = obj.matrix_world @ Vector((0, 0, 0))
+    origin = camera.matrix_world.translation
+
+    direction = (target - origin).normalized()
+    distance = (target - origin).length
+
+    origin = origin + direction * 0.01
+
+    hit, location, normal, index, hit_obj, matrix = scene.ray_cast(
+        depsgraph,
+        origin,
+        direction,
+        distance = distance
+    )
+
+    co_2d = world_to_camera_view(scene, camera, target)
+
+    if co_2d.z <= 0:
+        return 0
+    if not (0 <= co_2d.x <= 1 and 0 <= co_2d.y <= 1):
+        return 0
+
+    if hit and hit_obj is not None:
+        if hit_obj.name.startswith("UGV") or hit_obj.name.startswith("KEYPOINT"):
+            # allow occlusion only if it's NOT the target chain
+            if hit_obj == obj:
+                return 2
+            if hit_obj != obj:
+                return 0
+    
+    return 0
 
 def map_objects(obj):
     name = obj.name.split('.')[0]
@@ -109,8 +133,8 @@ def change_of_scene(collection_id):
         disable_collection(collection_3, True)
         disable_collection(collection_4, False)
 
-def save_yolo_form(img_path, bbox, keypoints):
-    label_path = img_path.replace(".png", ".txt")
+def save_yolo_form(text_path, bbox, keypoints):
+    label_path = text_path
     
     class_id = 0
     cx, cy, w, h = bbox
@@ -139,18 +163,30 @@ def object_data_app(obj, camera, scene):
     })
 
 
-def change_sun(SUN):
-    strength = random.uniform(0.1, 20)
-    SUN.data.energy = strength
-    angle = random.uniform(0, 10)
-    SUN.data.angle = math.pi * math.cos(angle)
+def change_sun(SUN, target, i):
+    #strength = random.uniform(0.5, 10)
+    SUN.data.energy = 5
+    
+    radius = 10
+    angle = i * 0.5
+
+    x = target.location.x + radius * math.cos(angle)
+    y = target.location.y + radius * math.sin(angle)
+    z = target.location.z + 10 * abs(math.sin(angle)) 
+
+    sun_pos = mathutils.Vector((x, y, z))
+    direction = target.location - sun_pos
+    SUN.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
+
+    bpy.context.view_layer.update()
+
 
 def Generate_data(num, ugv, key_points, SUN, camera, scene):
     #initialize all the parameters
     radius = 2
     radius_1 = 20
-    loop_size_r = 5
-    loop_size_a = 1
+    loop_size_r = 50
+    loop_size_a = 5
     num_attr = 15
     camera.location.z = 20
     camera.location.x = 0
@@ -169,16 +205,15 @@ def Generate_data(num, ugv, key_points, SUN, camera, scene):
         SUN.rotation_euler = direction_1.to_track_quat('-Z', 'Y').to_euler()
         camera.rotation_euler[0] = 0
         camera.rotation_euler[1] = 0
+
+        change_sun(SUN, ugv, i)
     
         for j in range(loop_size_r):
+            scene.view_layers.update()
             object_data.clear()
 
-            #change the sun on a presett intervall Ex. 1:10
-            if (j % 10) == 0:
-                change_sun(SUN)
-
             #change the angle and rotation of the camera around the 'UGV'
-            angle = j * 0.5
+            angle = j * 0.1
             camera.location.x = radius * math.cos(angle)
             camera.location.y = radius * math.sin(angle)
             camera.rotation_euler[2] = angle
@@ -193,7 +228,7 @@ def Generate_data(num, ugv, key_points, SUN, camera, scene):
             h  = (ymax - ymin) / img_height
 
             key_point_list = []
-            for k in range(15):
+            for k in range(13):
                 kp = key_points[k]
 
                 xmin, xmax, ymin, ymax = get_bbox(kp, camera, scene)
@@ -206,7 +241,12 @@ def Generate_data(num, ugv, key_points, SUN, camera, scene):
                 key_point_list.extend([x,y,vis])
 
             # render image and make a path with the neccesary data in the name of each picture
-            img_path = os.path.join(output_path, f"img{num}_{num_loop_one:04d}.png")
+            output_img = os.path.join(output_path, "images")
+            img_path = os.path.join(output_img, f"img{num}_{num_loop_one:04d}.png")
+            
+            output_text = os.path.join(output_path, "text")
+            text_path = os.path.join(output_text, f"img{num}_{num_loop_one:04d}.txt")
+
             scene.render.filepath = img_path
             bpy.ops.render.render(write_still=True)
 
@@ -216,13 +256,15 @@ def Generate_data(num, ugv, key_points, SUN, camera, scene):
                 object_data_app(kp, camera, scene)
 
             bbox = [cx, cy, w, h]
-            save_yolo_form(img_path, bbox, key_point_list)
+            
+            save_yolo_form(text_path, bbox, key_point_list)
             num_loop_one += 1
+            scene.view_layers.update()
 
 def main():
     #set the number of scenes existing
     number_off_scenes = 5
-    num_attr = 15
+    num_attr = 13
     key_points = {}
     for i in range(0, number_off_scenes):
         #change the object to be meassured each time the scene changes
