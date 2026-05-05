@@ -4,10 +4,10 @@ import cv2
 
 def main():
     # Load trained model (after training)
-    model = YOLO(r"C:\Users\egn23014\Slarc_1\runs\pose\runs\pose\yolov8n_custom-6\weights\best.pt")
+    model = YOLO(r"C:\Users\egn23014\Slarc_1\runs\pose\runs\pose\yolov8n_custom-6\weights\best.pt")#ändra till där modellen finns
 
     # Run prediction
-    results = model(r"C:\Users\egn23014\Downloads\dataset\dataset\images\val\image078.png", save=True, conf=0.25)
+    results = model(r"C:\Users\egn23014\Downloads\dataset\dataset\images\val\image034.png", save=True, conf=0.25)
 
     # Show result with keypoints
     for r in results:

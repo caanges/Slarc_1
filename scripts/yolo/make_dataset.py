@@ -4,9 +4,9 @@ import os
 
 # Convert confidence to visibility
 def conf_to_visibility(conf):
-    if conf < 0.2:
+    if conf < 0.4:
         return 0
-    elif conf < 0.5:
+    elif conf < 0.6:
         return 1
     else:
         return 2
@@ -14,13 +14,13 @@ def conf_to_visibility(conf):
 
 def main():
     # Load trained model
-    model = YOLO("runs/pose/yolov8n_custom/weights/best.pt")
+    model = YOLO(r"C:\Users\egn23014\Slarc_1\runs\pose\runs\pose\yolov8n_custom-6\weights\best.pt") #ändra till där modellen finns
 
     # Input images (unlabeled)
-    image_folder = "datasets/unlabeled/images" #Ändra till rätt
+    image_folder = (r"C:\Users\egn23014\Downloads\dataset_2000\split_1") #Ändra till rätt
 
     # Output labels
-    label_folder = "datasets/unlabeled/labels" #Ändra till rätt
+    label_folder = (r"C:\Users\egn23014\Downloads\dataset_2000\split_1_labels") #Ändra till rätt
     os.makedirs(label_folder, exist_ok=True)
 
     results = model(image_folder, conf=0.25)
@@ -30,7 +30,7 @@ def main():
             continue
 
         img_name = os.path.basename(r.path)
-        label_path = os.path.join(label_folder, img_name.replace(".jpg", ".txt"))
+        label_path = os.path.join(label_folder, img_name.replace(".png", ".txt"))
 
         with open(label_path, "w") as f:
             boxes = r.boxes.xywhn  
