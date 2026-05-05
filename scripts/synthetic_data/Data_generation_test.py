@@ -14,7 +14,6 @@ scene = bpy.context.scene
 
 # Output folder
 output_path = r"C:\Data_dva513\Data\Data_img\Gen_data"
-labeling_path = r"H:\Programmering\dva513\Slarc_1\Data\Data_label\json_data"
 
 object_data = []
 class_map = {}
@@ -101,6 +100,9 @@ def change_of_scene(collection_id):
     collection_2 = bpy.data.collections["Collection3"]
     collection_3 = bpy.data.collections["Collection4"]
     collection_4 = bpy.data.collections["Collection5"]
+    collection_5 = bpy.data.collections["Collection6"]
+    collection_6 = bpy.data.collections["Collection7"]
+    collection_7 = bpy.data.collections["Collection8"]
 
     if collection_id == 1:
         disable_collection(collection_0, False)
@@ -108,30 +110,72 @@ def change_of_scene(collection_id):
         disable_collection(collection_2, True)
         disable_collection(collection_3, True)
         disable_collection(collection_4, True)
+        disable_collection(collection_5, True)
+        disable_collection(collection_6, True)
+        disable_collection(collection_7, True)
     elif collection_id == 2:
         disable_collection(collection_0, True)
         disable_collection(collection_1, False)
         disable_collection(collection_2, True)
         disable_collection(collection_3, True)
         disable_collection(collection_4, True)
+        disable_collection(collection_5, True)
+        disable_collection(collection_6, True)
+        disable_collection(collection_7, True)
     elif collection_id == 3:
         disable_collection(collection_0, True)
         disable_collection(collection_1, True)
         disable_collection(collection_2, False)
         disable_collection(collection_3, True)
         disable_collection(collection_4, True)
+        disable_collection(collection_5, True)
+        disable_collection(collection_6, True)
+        disable_collection(collection_7, True)
     elif collection_id == 4:
         disable_collection(collection_0, True)
         disable_collection(collection_1, True)
         disable_collection(collection_2, True)
         disable_collection(collection_3, False)
         disable_collection(collection_4, True)
+        disable_collection(collection_5, True)
+        disable_collection(collection_6, True)
+        disable_collection(collection_7, True)
     elif collection_id == 5:
         disable_collection(collection_0, True)
         disable_collection(collection_1, True)
         disable_collection(collection_2, True)
         disable_collection(collection_3, True)
         disable_collection(collection_4, False)
+        disable_collection(collection_5, True)
+        disable_collection(collection_6, True)
+        disable_collection(collection_7, True)
+    elif collection_id == 6:
+        disable_collection(collection_0, True)
+        disable_collection(collection_1, True)
+        disable_collection(collection_2, True)
+        disable_collection(collection_3, True)
+        disable_collection(collection_4, True)
+        disable_collection(collection_5, False)
+        disable_collection(collection_6, True)
+        disable_collection(collection_7, True)
+    elif collection_id == 7:
+        disable_collection(collection_0, True)
+        disable_collection(collection_1, True)
+        disable_collection(collection_2, True)
+        disable_collection(collection_3, True)
+        disable_collection(collection_4, True)
+        disable_collection(collection_5, True)
+        disable_collection(collection_6, False)
+        disable_collection(collection_7, True)
+    elif collection_id == 8:
+        disable_collection(collection_0, True)
+        disable_collection(collection_1, True)
+        disable_collection(collection_2, True)
+        disable_collection(collection_3, True)
+        disable_collection(collection_4, True)
+        disable_collection(collection_5, True)
+        disable_collection(collection_6, True)
+        disable_collection(collection_7, False)
 
 def save_yolo_form(text_path, bbox, keypoints):
     label_path = text_path
@@ -263,7 +307,7 @@ def Generate_data(num, ugv, key_points, SUN, camera, scene):
 
 def main():
     #set the number of scenes existing
-    number_off_scenes = 5
+    number_off_scenes = 8
     num_attr = 13
     key_points = {}
     for i in range(0, number_off_scenes):
