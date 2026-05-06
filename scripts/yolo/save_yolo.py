@@ -1,17 +1,6 @@
 from ultralytics import YOLO
 import os
 
-
-# Convert confidence to visibility
-def conf_to_visibility(conf):
-    if conf < 0.4:
-        return 0
-    elif conf < 0.:
-        return 1
-    else:
-        return 2
-
-
 def main():
     # Load trained model
     model = YOLO(r"C:\Users\egn23014\Slarc_1\runs\pose\runs\pose\yolov8n_custom-6\weights\best.pt") #ändra till där modellen finns
@@ -20,7 +9,7 @@ def main():
     image_folder = (r"C:\Users\egn23014\Downloads\dataset_2000\split_1") #Ändra till rätt
 
     # Output labels
-    label_folder = (r"C:\Users\egn23014\Downloads\dataset_2000\split_1_labels") #Ändra till rätt
+    label_folder = (r"C:\Users\egn23014\Downloads\dataset_2000\split_1_yolo_confidence") #Ändra till rätt
     os.makedirs(label_folder, exist_ok=True)
 
     results = model(image_folder, conf=0.25)
@@ -43,8 +32,7 @@ def main():
                 line = [class_id] + box.tolist()
 
                 for (x, y), conf in zip(kpts_xy, kpts_conf):
-                    v = conf_to_visibility(conf)
-                    line.extend([float(x), float(y), v])
+                    line.extend([float(x), float(y), float(conf)])
 
                 f.write(" ".join(map(str, line)) + "\n")
 
