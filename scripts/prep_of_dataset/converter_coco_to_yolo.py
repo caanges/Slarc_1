@@ -1,13 +1,25 @@
-# This script converts COCO annotations to YOLO format, and also renames image files to clean names.
-
 import json
 import os
 
-INPUT_JSON = "_annotations.coco.json" # You need to have this file in the same folder as the script (get it from the roboflow website or the google drive)
-OUTPUT_DIR = "labels"
-IMAGES_DIR = "images" # You need to have the actual image files in this folder (you get them with the same download as the annotations)
+INPUT_JSON = r"C:\Users\egn23014\Downloads\testing.coco (1)\_annotations.coco.json"
+OUTPUT_DIR = r"C:\Users\egn23014\Downloads\testing.coco (1)\Labels"
+IMAGES_DIR = r"C:\Users\egn23014\Downloads\testing.coco (1)\Images"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+
+def clean_name(filename):
+    name, ext = os.path.splitext(filename)
+
+    # Remove Roboflow part: .rf.randomletters
+    name = name.split(".rf.")[0]
+
+    # Remove endings like _png, _png_png, _jpg
+    while name.endswith("_png") or name.endswith("_jpg"):
+        name = name.rsplit("_", 1)[0]
+
+    return name
+
 
 with open(INPUT_JSON) as f:
     data = json.load(f)
@@ -20,24 +32,22 @@ anns_per_image = {}
 for ann in data["annotations"]:
     anns_per_image.setdefault(ann["image_id"], []).append(ann)
 
+# List image files once
+image_files = os.listdir(IMAGES_DIR)
+
 for img_id, anns in anns_per_image.items():
     img_info = images[img_id]
     img_w, img_h = img_info["width"], img_info["height"]
 
     original_name = img_info["file_name"]
-    name_no_ext, ext = os.path.splitext(original_name)
+    short_name = clean_name(original_name)
 
-    # ---- CLEAN NAME ----
-    name_no_ext = name_no_ext.split(".rf.")[0]
-    name_no_ext = name_no_ext.replace("_png", "").replace("_jpg", "")
-
-    short_name = name_no_ext
-
-    # ---- FIND REAL FILE IN FOLDER ----
+    # ---- FIND EXACT MATCH AFTER CLEANING ----
     actual_file = None
-    for f in os.listdir(IMAGES_DIR):
-        if f.startswith(short_name):
-            actual_file = f
+
+    for file in image_files:
+        if clean_name(file) == short_name:
+            actual_file = file
             break
 
     if actual_file is None:
@@ -46,17 +56,20 @@ for img_id, anns in anns_per_image.items():
 
     old_img_path = os.path.join(IMAGES_DIR, actual_file)
 
-    # get real extension from disk file
+    # Keep real extension from disk file
     ext = os.path.splitext(actual_file)[1]
-
     new_img_name = short_name + ext
     new_img_path = os.path.join(IMAGES_DIR, new_img_name)
 
-    # ---- SAFE RENAME (NO STACKING) ----
+    # ---- SAFE RENAME ----
     if actual_file != new_img_name:
         if not os.path.exists(new_img_path):
             os.rename(old_img_path, new_img_path)
             print(f"{actual_file} → {new_img_name}")
+
+            # Update list so script does not search old name again
+            image_files.remove(actual_file)
+            image_files.append(new_img_name)
         else:
             print(f"Already exists: {new_img_name}")
 
@@ -67,7 +80,6 @@ for img_id, anns in anns_per_image.items():
         for ann in anns:
             cls = ann["category_id"]
 
-            # bbox
             x, y, w, h = map(float, ann["bbox"])
 
             x_center = (x + w / 2) / img_w
@@ -75,8 +87,7 @@ for img_id, anns in anns_per_image.items():
             w /= img_w
             h /= img_h
 
-            # keypoints
-            kpts = ann["keypoints"]
+            kpts = ann.get("keypoints", [])
             kpts_out = []
 
             for i in range(0, len(kpts), 3):
@@ -85,6 +96,5 @@ for img_id, anns in anns_per_image.items():
                 v = int(kpts[i + 2])
                 kpts_out.extend([kx, ky, v])
 
-            # write YOLO line
             line = [cls, x_center, y_center, w, h] + kpts_out
             f.write(" ".join(map(str, line)) + "\n")
