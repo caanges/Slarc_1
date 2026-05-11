@@ -1,3 +1,5 @@
+#KRÄVER FFMPEG och Cv2
+
 import os
 import subprocess
 
@@ -5,15 +7,23 @@ import subprocess
 # INSTÄLLNINGAR
 # =========================
 
+#sätt in path till videon
 VIDEO_FILE = r"C:\Users\Emil\Downloads\IMG_5073.MOV"
 
+
+
+#anpassa FPS med hur lång videon är
 NUM_FRAMES = 30
 VIDEO_DURATION_SECONDS = 11
+
+
+
+
 
 # MAPP VID SCRIPTETS PLATS
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-OUTPUT_FOLDER = os.path.join(BASE_DIR, "slarc_test-bilder")
+OUTPUT_FOLDER = os.path.join(BASE_DIR, "Drone_fotage")
 
 FRAME_FILENAME_PATTERN = "frame_%03d.jpg"
 
@@ -24,7 +34,7 @@ FRAME_FILENAME_PATTERN = "frame_%03d.jpg"
 print("Kontrollerar video...")
 
 if not os.path.exists(VIDEO_FILE):
-    raise FileNotFoundError(f"Hittar inte video: {VIDEO_FILE}")
+    raise FileNotFoundError(f"Can't find the video: {VIDEO_FILE}")
 
 print("Video hittad")
 
@@ -63,7 +73,7 @@ result = subprocess.run([
 if result.returncode != 0:
     print("FFMPEG FEL:")
     print(result.stderr)
-    raise Exception("FFmpeg misslyckades")
+    raise Exception("FFmpeg Failed")
 
 print("Klart!")
 
@@ -73,5 +83,5 @@ print("Klart!")
 
 files = os.listdir(OUTPUT_FOLDER)
 
-print(f"{len(files)} bilder skapade i:")
+print(f"{len(files)} Pictures created in:")
 print(OUTPUT_FOLDER)
