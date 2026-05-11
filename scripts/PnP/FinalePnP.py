@@ -13,25 +13,25 @@ class PnP_processing:
     def __init__(self):
 
 
-        UGV_points_3D = np.array([
-            [1,0,0],
-            [2,0,0],
-            [3,0,0],
-            [4,0,0],
-            [5,0,0],
-            [6,0,0],
-            [7,0,0],
-            [8,0,0],
-            [9,0,0],
-            [10,0,0],
-            [11,0,0],
-            [12,0,0],
-            [13,0,0]
+        self.UGV_points_3D = np.array([
+            [5.25, 40.4, 4.5],
+            [-9.75, 29.0, -2.5],
+            [9.75, 29.0, -2.5],
+            [22.5, 16.25, 0.0],
+            [-22.5, 16.25, 0.0],
+            [22.5, -16.25, 0.0],
+            [15.5, -11.75, 6.0],
+            [-15.5, -11.75, 6.0],
+            [-22.5, -16.25, 0.0],
+            [9.75, -29.25, -2.5],
+            [-9.75, -29.25, -2.5],
+            [8.5, -43.25, -5.0],
+            [-8.5, -43.25, -5.0]
         ] ,dtype = np.float32)
 
 
-        focal_length = 1280 # Dessa värden måste ändras utifrån våran kamera
-        center = (1280 / 2, 800 / 2) # Denna med
+        focal_length = 640 
+        center = (640 / 2, 400 / 2) 
         self.camera_matrix = np.array([
         [focal_length, 0, center[0]],
         [0, focal_length, center[1]],
@@ -45,8 +45,8 @@ class PnP_processing:
         self.conf_threshold = 0.8
 
 
-        self.img_w = 1280 # OBS! Exempel värden
-        self.img_h = 800
+        self.img_w = 640 
+        self.img_h = 400
 
 
     def ExtractValuesFromYolo(self, file_path):
@@ -58,28 +58,38 @@ class PnP_processing:
         if not os.path.exists(file_path):
             return None, None
        
-        with open("filnamnet där yolo datat är sparat", "r") as file:
+        with open(file_path, "r") as file:
+            # Read everything and convert to a flat list of floats
+            data = [float(val) for val in file.read().split()]
 
+        # The first value is usually the class_id, followed by 4 bbox values (x, y, w, h)
+        # If your file starts directly with the 4 bbox values, use start_index = 4
+        # If it's standard YOLO (class_id + 4 bbox), use start_index = 5
+        start_index = 5 
+        keypoints_only = data[start_index:]
 
-            for line in file:
-                # Assumed that YOLO format: class_id x_center y_center width height confidence
-                parts = line.split()
-                if len(parts) < 6: continue # Skip broken lines
+        # Process triplets: (x, y, confidence)
+        for i in range(0, len(keypoints_only), 3):
+            # Calculate which 3D point this corresponds to
+            point_idx = i // 3
 
+            if point_idx >= len(self.UGV_points_3D):
+                break
+            
+            if i + 2 < len(keypoints_only):
+                x_val = keypoints_only[i]
+                y_val = keypoints_only[i+1]
+                conf = keypoints_only[i+2]
 
-                class_id = int(parts[0]) # I denna for loop så läses det in en linje för sig i .txt filen och därav så tar man fram dess class_id, conf, x, y och om dess confidence är tillräcklig så kan den skickas in i accepterade 2d punkter, och matchande 3d punkten registreras då också med samma class_id
-                # Convert normalized (0-1) to pixels
-                x_pixel = float(parts[1]) * self.img_w
-                y_pixel = float(parts[2]) * self.img_h
-                conf = float(parts[5])
-
+                print(f"Point {point_idx}: X={x_val:.3f}, Y={y_val:.3f}, Conf={conf:.2f}")
 
                 if conf >= self.conf_threshold:
-                    Valid_2D_image_points.append([x_pixel, y_pixel])
-                    matching_3D_object_points.append(self.UGV_points_3D[class_id])
-
-
-        return np.array(matching_3D_object_points, dtype = np.float32), np.array(Valid_2D_image_points, dtype = float)
+                    #x_pixel = x_val * self.img_w
+                    #y_pixel = y_val * self.img_h
+                    Valid_2D_image_points.append([x_val, y_val])
+                    matching_3D_object_points.append(self.UGV_points_3D[point_idx])
+        print(f"Valid points meeting threshold: {len(Valid_2D_image_points)}")
+        return np.array(matching_3D_object_points, dtype = np.float32), np.array(Valid_2D_image_points, dtype = np.float32)
 
 
 
@@ -87,93 +97,155 @@ class PnP_processing:
     def CalculatePose(self, file_path):
 
 
+        success = False #initialisering
+        rvec, tvec, inliers = None, None, None
+
         Final_3D_point, Final_2D_point = self.ExtractValuesFromYolo(file_path)# File pathen är faktiska pathen till där yolo .txt filen befinner sig
        
+        if Final_3D_point is None or len(Final_2D_point) < 4:
+            # Added a print statement to show the exact number of detected points
+            print(f"Not enough points detected in {os.path.basename(file_path)} "
+                  f"(detected: {0 if Final_2D_point is None else len(Final_2D_point)}, required: 4)")
+            return None, None
+
+        # Convert points to the correct format and data type
+        Final_3D_point = np.array(Final_3D_point, dtype=np.float32).reshape(-1,1,3)
+        Final_2D_point = np.array(Final_2D_point, dtype = np.float32).reshape(-1,1,2)
+
+        try:    
+            success, rvec, tvec, inliers = cv2.solvePnPRansac(Final_3D_point, Final_2D_point, self.camera_matrix, 
+            self.dist_coeffs, iterationsCount = 100, reprojectionError = 20.0, flags = cv2.SOLVEPNP_EPNP ) # Här utförs självaste uträkningen av rvec och tvec
+                                                                                                            # reprojectionError var 8.0 innan
+                                                                                                            # flags var SOLVEPNP_ITERATIVE innan                                                
+        # Ensure the solve was successful and the sizes are exactly 3
+            if success and rvec is not None and tvec is not None:
+                rvec_arr = np.array(rvec, dtype = np.float32).flatten()
+                tvec_arr = np.array(tvec, dtype = np.float32).flatten()
+
+                if rvec_arr.size == 3 and tvec_arr.size == 3:
+                    return rvec, tvec
+                else:
+                    print(f"Pose estimation failed for {os.path.basename(file_path)}: "
+                          f"Vector sizes invalid (rvec size: {rvec_arr.size}, tvec size: {tvec_arr.size}).")
+            else:
+                # This print will catch the case where solvePnPRansac returns success=False
+                print(f"Pose estimation failed for {os.path.basename(file_path)}: "
+                      f"solvePnPRansac returned success={success}, rvec={rvec}, tvec={tvec}.")
+                return None, None
+            
+            
+        
+        except Exception as e:
+            print(f"Error in solvePnPRansac: {e}")
+            return None, None
 
 
-        if len(Final_2D_point) >= 4 and Final_3D_point is None: # Det var or här innan
+        '''
+        if len(Final_2D_point) >= 4 and Final_3D_point is not None: # Det var or här innan #Ska det inte finnas final_3d_point is not None?
             success, rvec, tvec, inliers = cv2.solvePnPRansac(Final_3D_point, Final_2D_point, self.camera_matrix, 
             self.dist_coeffs, iterationsCount = 100, reprojectionError = 8.0, flags = cv2.SOLVEPNP_ITERATIVE ) # Här utförs självaste uträkningen av rvec och tvec
         else:
             print("Not enough points detected to solve for pose.")
+        '''
 
-
-        return (rvec, tvec)if success and inliers is not None else (None, None)
+        #return (rvec, tvec)if success and inliers is not None else (None, None)
    
 
 
 
 
-def main(): # glöm ej att använda cv2.projectPoints för att verifiera rvec och tvec
+def main(): 
+    folder_path = r"C:\Users\msh23003\OneDrive - Mälardalens universitet\Documents\txtFileForTestPnP"
+    image_folder = r"C:\Users\msh23003\OneDrive - Mälardalens universitet\Documents\txtFileForTestPnP"
 
+    # Instantiate the processor
+    processor = PnP_processing()
 
+    if not os.path.exists(folder_path): # Till exempel "./yolo_results"
+        print(f"Folder '{folder_path}' does not exist.")
+        return
 
+    axis = np.float32([
+        [0,0,0],
+        [15,0,0],
+        [0,15,0],
+        [0,0,15]
+    ])
 
-        folder_path ="Ge folder vägen till där yolo datat finns"
+    for filename in os.listdir(folder_path): # filename är temporärt namn av yolo .txt filen, namnet är inte så viktigt, det viktiga är att det är en .txt fil
+        if filename.endswith(".txt"): # Anledningen till varför man inte döper till riktiga filnamnet är för att man måste då byta filnman hela tiden efter man kör yolo modellen på nytt
+            full_path = os.path.join(folder_path, filename)
+            base_name = os.path.splitext(filename)[0]
 
-        # Instantiate the processor
-        processor = PnP_processing()
+            img_path = os.path.join(image_folder, f"{base_name}.png")
 
+            rvec, tvec = processor.CalculatePose(full_path)
 
-        if not os.path.exists(folder_path): # Till exempel "./yolo_results"
-            print(f"Folder '{folder_path}' does not exist.")
-            return
+            if rvec is not None and tvec is not None:
+                # FIX: Force arrays into the strict shape/type cv2.projectPoints requires
+                # Safely flatten and check the size of rvec and tvec
+                rvec_arr = np.array(rvec, dtype=np.float32).flatten()
+                tvec_arr = np.array(tvec, dtype=np.float32).flatten()
 
-        for filename in os.listdir(folder_path):# filename är temporärt namn av yolo .txt filen, namnet är inte så viktigt, det viktiga är att det är en .txt fil
-            if filename.endswith(".txt"): # Anledningen till varför man inte döper till riktiga filnamnet är för att man måste då byta filnman hela tiden efter man kör yolo modellen på nytt
-                full_path = os.path.join(folder_path, filename)
+                # FIX: Skip if vectors don't have exactly 3 elements
+                if rvec_arr.size !=3 or tvec_arr.size !=3:
+                    print(f"Skipping frame: rvec/tvec size invalid (rvec={rvec_arr.size}, tvec={tvec_arr.size}).")
+                    continue
+                
+                rvec_safe = rvec_arr.reshape(3, 1)
+                tvec_safe = tvec_arr.reshape(3, 1)
 
+                try: # Project the 3D points/axes into 2D image coordinates
+                    imgpts, jacobian = cv2.projectPoints(axis, rvec_safe, tvec_safe, processor.camera_matrix, processor.dist_coeffs) # cv2.projectPoints för att verifiera rvec och tvec
 
-                rvec, tvec = processor.CalculatePose(full_path)
-
-                if rvec is not None and tvec is not None:
                     # Print the raw arrays
-                    print("Rotation Vector (rvec):\n", rvec)# Angle in radians
+                    print("Rotation Vector (rvec):\n", rvec) # Angle in radians
                     print("Translation Vector (tvec):\n", tvec)
                     
                     # Print cleaner, one-line versions
                     print(f"Position (X, Y, Z): {tvec.flatten()}")
 
-                
+                    if os.path.exists(img_path):
+                        #img = cv2.imread(img_path)        
+                        img_array = np.fromfile(img_path, np.uint8)
+                        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+                    else:
+                        print(f"No corresponding image found for {filename}. Using blank background")
+                        img = np.zeros((800,1280,3), dtype=np.uint8)
 
-                
+                    #Här ska plotting ske
+                    imgpts = imgpts.astype(int)
 
-                #Här ska plotting ske
+                    o, x, y, z = imgpts.reshape(-1,2) # x,y,z här är annorlunda från tvec x,y,z
 
-                img = np.zeros((800,1280,3), dtype=np.uint8)
-                
-                axis = np.float32([
-                [0,0,0],
-                [0.1,0,0],
-                [0,0.1,0],
-                [0,0,0.1]
-                ])
+                    cv2.line(img, tuple(o), tuple(x), (0,0,255), 3) # X - Red
+                    cv2.line(img, tuple(o), tuple(y), (0,255,0), 3) # Y - Green
+                    cv2.line(img, tuple(o), tuple(z), (255,0,0), 3) # Z - Blue
+                    
+                    cv2.imshow("Pose estimation", img) #displaya bilden, Innan stod det cv2_imshow med udnerstreck vilket kommer från google collab
 
-                imgpts, jacobian = cv2.projectPoints(axis, rvec, tvec, processor.camera_matrix, processor.dist_coeffs)# cv2.projectPoints för att verifiera rvec och tvec
-                
-                imgpts = imgpts.astype(int)
+                except Exception as e:
+                    print(f"Error projecting points: {e}")
+            else:
+                print(f"Pose estimation skipped for: {filename}")
 
-                o, x, y, z = imgpts.reshape(-1,2)# x,y,z här är annorlunda från tvec x,y,z
+            cv2.waitKey(0) #Kolla om detta behövs
 
-                cv2.line(img, tuple(o), tuple(x), (0,0,255), 3) # X - Red
-                cv2.line(img, tuple(o), tuple(y), (0,255,0), 3) # Y - Green
-                cv2.line(img, tuple(o), tuple(z), (255,0,0), 3) # Z - Blue
-                
-                cv2_imshow("Pose estimation", img) #displaya bilden
+    cv2.destroyAllWindows()
 
-
-
-
-                cv2.waitKey(0) #Kolla om detta behövs
-
-
-
-        
-        cv2.destroyAllWindows()
+    '''
+    # Display the plotted image
+    try:
+        from google.colab.patches import cv2_imshow
+        cv2_imshow(img)
+    except ImportError:
+        cv2.imshow("Pose estimation", img)
+        cv2.waitKey(0)
+    '''
 
 
 if __name__ == "__main__":
-        main()
+    main()
 
 
 
