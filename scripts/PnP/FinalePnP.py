@@ -155,8 +155,8 @@ class PnP_processing:
 
 
 def main(): 
-    folder_path = r"C:\Users\msh23003\OneDrive - Mälardalens universitet\Documents\txtFileForTestPnP"
-    image_folder = r"C:\Users\msh23003\OneDrive - Mälardalens universitet\Documents\txtFileForTestPnP"
+    folder_path = r"C:\Users\een23013\Desktop\PNPtest"
+    image_folder = r"C:\Users\een23013\Desktop\PNPtest"
 
     # Instantiate the processor
     processor = PnP_processing()
@@ -167,8 +167,8 @@ def main():
 
     axis = np.float32([
         [0,0,0],
-        [15,0,0],
-        [0,15,0],
+        [-15,0,0],
+        [0,-15,0],
         [0,0,15]
     ])
 
