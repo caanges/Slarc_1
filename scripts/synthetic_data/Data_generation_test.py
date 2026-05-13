@@ -12,8 +12,24 @@ import math
 # Get objects
 scene = bpy.context.scene
 
+scene.use_nodes = True
+tree = scene.node_tree
+links = tree.links
+
+# Clear old nodes
+tree.nodes.clear()
+
+render_layers = tree.nodes.new(type='CompositorNodeRLayers')
+blur_node = tree.nodes.new(type='CompositorNodeBlur')
+composite_node = tree.nodes.new(type='CompositorNodeComposite')
+
+# Blur settings
+blur_node.filter_type = 'GAUSS'
+blur_node.size_x = 6
+blur_node.size_y = 6
+
 # Output folder
-output_path = r"C:\Data_dva513\Data\Data_img\Gen_data"
+output_path = r"C:\Data_dva513\Data\Train_val_test"
 
 object_data = []
 class_map = {}
@@ -206,7 +222,6 @@ def object_data_app(obj, camera, scene):
         "visibility": check
     })
 
-
 def change_sun(SUN, target, i):
     #strength = random.uniform(0.5, 10)
     SUN.data.energy = 5
@@ -228,13 +243,10 @@ def change_sun(SUN, target, i):
 def Generate_data(num, ugv, key_points, SUN, camera, scene):
     #initialize all the parameters
     radius = 2
-    radius_1 = 20
-    loop_size_r = 50
-    loop_size_a = 5
-    num_attr = 15
+    loop_size_r = 25
+    loop_size_a = 10
+    num_attr = 13
     camera.location.z = 20
-    camera.location.x = 0
-    camera.location.y = 0
     num_of_loops = 0
     num_loop_one = 0
     camera.rotation_euler[0] = 0
@@ -250,17 +262,39 @@ def Generate_data(num, ugv, key_points, SUN, camera, scene):
         camera.rotation_euler[0] = 0
         camera.rotation_euler[1] = 0
 
+
+        loc_x = ugv.location.x 
+        loc_y = ugv.location.y
+
+        ugv.location.x = loc_x + random.uniform(-1, 1)
+        ugv.location.y = loc_y + random.uniform(-1, 1) 
+
         change_sun(SUN, ugv, i)
-    
+
+        camera.location.x = ugv.location.x + random.uniform(-1, 1)
+        camera.location.y = ugv.location.y + random.uniform(-1, 1)
+        camera.location.z = random.uniform(5, 25)
+
         for j in range(loop_size_r):
             scene.view_layers.update()
             object_data.clear()
 
             #change the angle and rotation of the camera around the 'UGV'
             angle = j * 0.1
-            camera.location.x = radius * math.cos(angle)
-            camera.location.y = radius * math.sin(angle)
             camera.rotation_euler[2] = angle
+            orbit_radius = random.uniform(0.5, 2.0)
+
+            camera.location.x = (
+                ugv.location.x
+                + orbit_radius * math.cos(angle)
+                + random.uniform(-0.3, 0.3)
+            )
+
+            camera.location.y = (
+                ugv.location.y
+                + orbit_radius * math.sin(angle)
+                + random.uniform(-0.3, 0.3)
+            )
 
             bpy.context.view_layer.update()
 
@@ -284,17 +318,56 @@ def Generate_data(num, ugv, key_points, SUN, camera, scene):
 
                 key_point_list.extend([x,y,vis])
 
-            # render image and make a path with the neccesary data in the name of each picture
-            output_img = os.path.join(output_path, "images")
-            img_path = os.path.join(output_img, f"img{num}_{num_loop_one:04d}.png")
+            if num == 6 or num == 7:
+                output_path_img = os.path.join(output_path, r"images\val")
+                img_path = os.path.join(output_path_img, f"img{num}_{num_loop_one:04d}.png")
+
+                output_path_txt = os.path.join(output_path, r"labels\val")
+                text_path = os.path.join(output_path_txt, f"img{num}_{num_loop_one:04d}.txt")
+
+            else:
+                output_img = os.path.join(output_path, r"images\train")
+                img_path = os.path.join(output_img, f"img{num}_{num_loop_one:04d}.png")
             
-            output_text = os.path.join(output_path, "text")
-            text_path = os.path.join(output_text, f"img{num}_{num_loop_one:04d}.txt")
+                output_text = os.path.join(output_path, r"labels\train")
+                text_path = os.path.join(output_text, f"img{num}_{num_loop_one:04d}.txt")
 
-            scene.render.filepath = img_path
-            bpy.ops.render.render(write_still=True)
 
-            #increase num_of_loops by five to match the amount of parameters we are making data for 
+            # Every 25th image becomes blurry
+            if num_loop_one % 25 == 0:
+
+                # Random blur amount
+                blur_strength = random.randint(5, 15)
+
+                blur_node.size_x = blur_strength
+                blur_node.size_y = blur_strength
+
+                # Connect render -> blur -> output
+                links.clear()
+
+                links.new(
+                    render_layers.outputs['Image'],
+                    blur_node.inputs['Image']
+                )
+
+                links.new(
+                    blur_node.outputs['Image'],
+                    composite_node.inputs['Image']
+                )
+
+            else:
+
+                # No blur
+                links.clear()
+
+                links.new(
+                    render_layers.outputs['Image'],
+                    composite_node.inputs['Image']
+                )
+
+                scene.render.filepath = img_path
+                bpy.ops.render.render(write_still=True)
+
 
             for kp in key_points.values():
                 object_data_app(kp, camera, scene)
