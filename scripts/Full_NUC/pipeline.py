@@ -18,8 +18,8 @@ pnp = PnP_processing()
 # Axis to draw on the UGV
 axis = np.float32([
     [0, 0, 0],
-    [15, 0, 0],
-    [0, 15, 0],
+    [-15, 0, 0],
+    [0, -15, 0],
     [0, 0, 15]
 ])
 
