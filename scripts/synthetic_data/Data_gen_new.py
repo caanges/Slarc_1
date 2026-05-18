@@ -7,19 +7,21 @@ from bpy_extras.object_utils import world_to_camera_view
 import os
 import time
 
+
 scene = bpy.context.scene
+
 output_path = r"C:\Data_dva513\Data\Train_val_test"
 object_data = []
 class_map = {}
 collections = []
 
 img_width = int(scene.render.resolution_x * scene.render.resolution_percentage / 100)
-img_hwight = int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
+img_height = int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
 
 #_______Collections_________#
 def init_scenes(num_of_scenes):
     for i in range(0, num_of_scenes):
-        collections[i] = bpy.data.collections[f'Collection.{i:02d}']
+        collections.append(bpy.data.collections[f'Collection.{i:02d}']) 
 
 def disable_collection(collection, state):
     for obj in collection.all_objects:
@@ -69,11 +71,11 @@ def get_bbox(obj, camera, scene):
     return x, y, w, h
 
 def visibility(obj, camera, scene):
-    scene.view_layers,update()
+    scene.view_layers.update()
     depsgraph = bpy.context.evaluated_depsgraph_get()
 
     target = obj.matrix_world @ Vector((0, 0, 0))
-    origin = camera.matrix_world.translateion
+    origin = camera.matrix_world.translation
 
     direction = (target - origin).normalized()
     distance = (target - origin).length
@@ -89,28 +91,18 @@ def visibility(obj, camera, scene):
     co_2D = world_to_camera_view(scene, camera, target)
     if co_2D.z <= 0:
         return 0
-    if not (0 <= co_2D.x <= 1 and 0 <= co2D.y <= 1):
+    if not (0 <= co_2D.x <= 1 and 0 <= co_2D.y <= 1):
         return 0
 
     if hit and hit_obj is not None:
-        if hot_obj.name.startswith("UGV") or hit_obj.name.startswith("KEYPOINT"):
-            if hit_obj = obj:
+        if hit_obj.name.startswith("UGV") or hit_obj.name.startswith("KEYPOINT"):
+            if hit_obj == obj:
                 return 2
             if hit_obj != obj:
                 return 0
     return 0
 
-def object_data_app(obj, camera, scene):
-    x, y, w, h = get_bbox(obj, camera, scene)
-
-    check = visibility(obj, camera, scene)
-    object_data.append({
-        "object": obj.name,
-        "bbox": [x_center, y_center, w, h],
-        "visibility": check
-    })
-
-def save_yolo_format(text_path, bbox, key_point_list):
+def save_yolo_format(text_path, bbox, keypoints):
     label_path = text_path
     class_id = 0
     cx, cy, w, h = bbox
@@ -150,20 +142,20 @@ def camera_location(camera, ugv, loop_2):
 
 def change_sun(Sun, ugv, loop_1):
     radius = 20
-    angle = i * 0.1
+    angle = loop_1 * 0.1
 
     x = ugv.location.x + radius * math.cos(angle)
     y = ugv.location.y + radius * math.sin(angle)
-    z = target.location.z + 10 * abs(math.sin(angle))
+    z = ugv.location.z + 10 * abs(math.sin(angle))
 
     sun_pos = mathutils.Vector((x, y, z))
     direction = ugv.location - sun_pos
-    Sun.rotatino_euler = direction.to_track_quat('-Z', 'Y').to_euler()
+    Sun.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
 
     bpy.context.view_layer.update()
 
 #____________Data Generation_______________#
-def Generate_data(i, ugv, key_points, Sun, camera, scene, num_attr):
+def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
     loop_size_i = 15
     loop_size_j = 10
 
@@ -187,36 +179,34 @@ def Generate_data(i, ugv, key_points, Sun, camera, scene, num_attr):
 
             key_point_list = []
             for k in range(num_attr):
-                kp = keypoints[k]
+                kp = key_points[k]
                 x, y, disc_w, disc_h = get_bbox(kp, camera, scene)
 
                 vis = visibility(kp, camera, scene)
                 key_point_list.extend([x,y,vis])
         
-            if i == 6 or num == 7:
+            if num == 6 or num == 7:
                 output_path_img = os.path.join(output_path, r"images\val")
                 img_path = os.path.join(output_path_img, f"img{i}_{loop_counter_1:04d}.png")
 
                 output_path_txt = os.path.join(output_path, r"labels\val")
-                txt_path = os.path.join(output_path_img, f"img{i}_{loop_counter_1:04d}.png")
+                txt_path = os.path.join(output_path_txt, f"img{i}_{loop_counter_1:04d}.txt")
 
             else:
                 output_path_img = os.path.join(output_path, r"images\train")
                 img_path = os.path.join(output_path_img, f"img{i}_{loop_counter_1:04d}.png")
 
                 output_path_txt = os.path.join(output_path, r"labels\train")
-                txt_path = os.path.join(output_path_img, f"img{i}_{loop_counter_1:04d}.png")
+                txt_path = os.path.join(output_path_txt, f"img{i}_{loop_counter_1:04d}.txt")
             
             scene.render.filepath = img_path
             bpy.ops.render.render(write_still=True)
 
-            for kp in key_points.values():
-                object_data_app(kp, camera, scene)
-
             bbox = [cx, cy, w, h]
-            save_yolo_form(text_path, bbox, key_point_list)
+            save_yolo_format(txt_path, bbox, key_point_list)
             loop_counter_1 += 1
             scene.view_layers.update()
+        loop_counter_1 += 1
 
         
 #_____main_____#
@@ -225,7 +215,7 @@ def main():
     num_attr = 13
     key_points = {}
 
-    init_scenes(num_scenes)
+    init_scenes(num_scenes) 
 
     for i in range(0, num_scenes):
         camera = bpy.data.objects[f'Camera.{i:03d}']
@@ -234,7 +224,7 @@ def main():
             key_points[j] = bpy.data.objects[f'KEYPOINT_{j}.{i:03d}']
             map_objects(key_points[j])
 
-        sun = bpy.data.objects[f'Sun.{i:03d}']
+        Sun = bpy.data.objects[f'Sun.{i:03d}']
         scene.camera = camera
         change_of_scene(i + 1, num_scenes)
         Generate_data(i, ugv, key_points, Sun, camera, scene, num_attr)

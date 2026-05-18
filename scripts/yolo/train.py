@@ -3,11 +3,11 @@ from ultralytics import YOLO
 
 def main():
     # Load base YOLOv8 nano pose model
-    model = YOLO("yolov8n-pose.pt")
+    model = YOLO(r"H:\Programmering\dva513\Slarc_1\scripts\yolo\runs\pose\runs\pose\yolov8n_custom-6\weights\best.pt")
 
     # Train
     model.train(
-        data="data.yaml",  # path to your dataset config
+        data=r"H:\Programmering\dva513\Slarc_1\scripts\yolo\data.yaml",  # path to your dataset config
         epochs=100,
         imgsz=640,
         batch=16,
