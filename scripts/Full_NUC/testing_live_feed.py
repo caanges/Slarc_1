@@ -2,10 +2,7 @@ import cv2
 import depthai as dai
 import numpy as np
 
-
-# =========================
-# CHANGE THESE
-# =========================
+# CHANGE THIS
 BLOB_PATH = r"C:\Users\egn23014\Downloads\best.rvc2_legacy.rvc2\best.blob"
 
 
@@ -21,7 +18,7 @@ NMS_IOU_THRES = 0.5
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
-
+#help for NMS to compare two bounding boxes
 def box_iou(box1, box2):
     x1, y1, x2, y2 = box1
     x1b, y1b, x2b, y2b = box2
@@ -46,7 +43,7 @@ def box_iou(box1, box2):
 
     return inter_area / union
 
-
+#this is NMS for the YOLO model
 def nms_detections(detections, iou_threshold=0.5):
     detections = sorted(detections, key=lambda d: d["conf"], reverse=True)
     kept = []
@@ -62,17 +59,18 @@ def nms_detections(detections, iou_threshold=0.5):
 
     return kept
 
-
+#this handles the output from yolo-blob code so it becomes correct
 def decode_multi_output_yolov8_pose(outputs):
     all_detections = []
-
+    #gives 6 output layers with these different scales and the last digit is the stride
     pairs = [
         ("output1_yolov8", "kpt_output1", 80, 80, 8),
         ("output2_yolov8", "kpt_output2", 40, 40, 16),
         ("output3_yolov8", "kpt_output3", 20, 20, 32),
     ]
-
+    
     for box_name, kpt_name, grid_w, grid_h, stride in pairs:
+        #reshaping the output, one row to one row each
         box_raw = outputs[box_name]
         kpt_raw = outputs[kpt_name]
 
@@ -90,7 +88,8 @@ def decode_multi_output_yolov8_pose(outputs):
 
         for i in range(num_cells):
             pred = boxes[i]
-
+            
+            #Confidence filtering
             obj_conf = float(pred[4])
 
             if box_values > 5:
@@ -101,7 +100,8 @@ def decode_multi_output_yolov8_pose(outputs):
 
             if conf < CONF_THRES:
                 continue
-
+            
+            #Decoding the bounding boxes from output to image coordinates
             grid_x = i % grid_w
             grid_y = i // grid_w
 
@@ -123,6 +123,7 @@ def decode_multi_output_yolov8_pose(outputs):
             x2 = max(0, min(INPUT_SIZE, x2))
             y2 = max(0, min(INPUT_SIZE, y2))
 
+            #decoding the keypoints from output to image coordinates
             kpts = []
             kpt_data = keypoints_raw[i]
 
@@ -132,6 +133,7 @@ def decode_multi_output_yolov8_pose(outputs):
                 kc = float(kpt_data[k * 3 + 2])
                 kpts.append((kx, ky, kc))
 
+            #store the detections
             all_detections.append({
                 "box": (x1, y1, x2, y2),
                 "conf": conf,
@@ -168,7 +170,7 @@ def decode_multi_output_yolov8_pose(outputs):
 
 def draw_detections(image, detections):
     result = image.copy()
-
+    #if no detections the No detections gets shown
     if len(detections) == 0:
         cv2.putText(
             result,
@@ -181,6 +183,7 @@ def draw_detections(image, detections):
         )
         return result
 
+    #draws the bounding box and keypoints
     for det in detections:
         x1, y1, x2, y2 = det["box"]
         conf = det["conf"]
@@ -220,55 +223,42 @@ def draw_detections(image, detections):
 def main():
     pipeline = dai.Pipeline()
 
-    # =========================
-    # MONO CAMERA
-    # =========================
+    #Starts the pipeline and uses one mono camera
     mono = pipeline.create(dai.node.MonoCamera)
     mono.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
     mono.setBoardSocket(dai.CameraBoardSocket.CAM_B)
 
-    # =========================
-    # IMAGE MANIP
-    # Convert mono frame to 640x640 NN input
-    # NOTE: this resizes, not true letterbox
-    # =========================
+    #resizes the image to 640x640 with letterbox, the image is 640#480
     manip = pipeline.create(dai.node.ImageManip)
     manip.initialConfig.setResizeThumbnail(INPUT_SIZE, INPUT_SIZE)
     manip.initialConfig.setFrameType(dai.ImgFrame.Type.RGB888p)
 
     manip.setMaxOutputFrameSize(1228800)
 
-    # =========================
-    # NEURAL NETWORK
-    # =========================
+    #Uploads the YOLO model
     nn = pipeline.create(dai.node.NeuralNetwork)
     nn.setBlobPath(BLOB_PATH)
 
-    # =========================
-    # OUTPUTS TO PC/NUC
-    # =========================
+    #Connects the nodes for the workflow,sends the output to NUC and also send the frame that is worked on
     xout_frame = pipeline.create(dai.node.XLinkOut)
     xout_frame.setStreamName("frame")
 
     xout_nn = pipeline.create(dai.node.XLinkOut)
     xout_nn.setStreamName("nn")
 
-    # =========================
-    # LINK PIPELINE
-    # =========================
     mono.out.link(manip.inputImage)
     manip.out.link(nn.input)
 
-    # Send manipulated frame to PC for drawing
     manip.out.link(xout_frame.input)
 
-    # Send NN result to PC
     nn.out.link(xout_nn.input)
 
+    
     with dai.Device(pipeline) as device:
         frame_q = device.getOutputQueue("frame", maxSize=4, blocking=False)
         nn_q = device.getOutputQueue("nn", maxSize=4, blocking=False)
 
+        #This runs all the time and is what calls all functions and gives continous output
         while True:
             frame_msg = frame_q.get()
             nn_data = nn_q.get()
