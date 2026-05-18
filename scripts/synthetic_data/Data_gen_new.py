@@ -29,10 +29,11 @@ def disable_collection(collection, state):
     collection.hide_render = state
 
 def change_of_scene(collection_id, num_of_scenes):
-    state = True
     for i in range(0, num_of_scenes):
         if i == collection_id:
             state = False
+        else:
+            state = True
         disable_collection(collections[i], state)
 
 #__________data_handling_________#
@@ -71,7 +72,7 @@ def get_bbox(obj, camera, scene):
     return x, y, w, h
 
 def visibility(obj, camera, scene):
-    scene.view_layers.update()
+    bpy.context.view_layer.update()
     depsgraph = bpy.context.evaluated_depsgraph_get()
 
     target = obj.matrix_world @ Vector((0, 0, 0))
@@ -135,8 +136,9 @@ def camera_location(camera, ugv, loop_2):
             + orbit_radius * math.cos(angle)
             +random.uniform(-0.3, 0.3)
         )
+    
 
-    camera.location.z -= loop_2
+    
     bpy.context.view_layer.update()
 
 
@@ -148,6 +150,7 @@ def change_sun(Sun, ugv, loop_1):
     y = ugv.location.y + radius * math.sin(angle)
     z = ugv.location.z + 10 * abs(math.sin(angle))
 
+    Sun.data.energy = 10
     sun_pos = mathutils.Vector((x, y, z))
     direction = ugv.location - sun_pos
     Sun.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
@@ -156,8 +159,8 @@ def change_sun(Sun, ugv, loop_1):
 
 #____________Data Generation_______________#
 def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
-    loop_size_i = 15
-    loop_size_j = 10
+    loop_size_i = 5
+    loop_size_j = 5
 
     camera.location.z = 20
     loop_counter_1 = 0
@@ -165,12 +168,17 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
     camera.rotation_euler[0] = 0
     camera.rotation_euler[1] = 0
     camera.rotation_euler[2] = 0
+    camera.location.z = 20
 
     for i in range(loop_size_i):
         change_ugv_loc(ugv)
         change_sun(Sun, ugv, loop_counter_1)
+        if camera.location.z > 5:
+            camera.location.z -= 1
+        else:
+            camera.location.z = 20
         for j in range(loop_size_j):
-            scene.view_layers.update()
+            bpy.context.view_layer.update()
             object_data.clear()
             
             camera_location(camera, ugv, loop_counter_2)
@@ -205,7 +213,7 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
             bbox = [cx, cy, w, h]
             save_yolo_format(txt_path, bbox, key_point_list)
             loop_counter_2 += 1
-            scene.view_layers.update()
+            bpy.context.view_layer.update()
         loop_counter_1 += 1
 
         
@@ -217,7 +225,7 @@ def main():
 
     init_scenes(num_scenes) 
 
-    for i in range(0, num_scenes):
+    for i in range(0, num_scenes + 1):
         camera = bpy.data.objects[f'Camera.{i:03d}']
         ugv = bpy.data.objects[f'UGV.{i:03d}']
         for j in range(0, num_attr):
