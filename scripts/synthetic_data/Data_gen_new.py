@@ -44,7 +44,7 @@ def map_objects(obj):
         class_map[name] = KEYPOINT_id
     else:
         ugv_id = 15
-        class_map[name_ugv] = UGV_id
+        class_map[name_ugv] = ugv_id
 
 def get_bbox(obj, camera, scene):
     coords = []
@@ -187,24 +187,24 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
         
             if num == 6 or num == 7:
                 output_path_img = os.path.join(output_path, r"images\val")
-                img_path = os.path.join(output_path_img, f"img{i}_{loop_counter_1:04d}.png")
+                img_path = os.path.join(output_path_img, f"img{i}_{loop_counter_2:04d}.png")
 
                 output_path_txt = os.path.join(output_path, r"labels\val")
-                txt_path = os.path.join(output_path_txt, f"img{i}_{loop_counter_1:04d}.txt")
+                txt_path = os.path.join(output_path_txt, f"img{i}_{loop_counter_2:04d}.txt")
 
             else:
                 output_path_img = os.path.join(output_path, r"images\train")
-                img_path = os.path.join(output_path_img, f"img{i}_{loop_counter_1:04d}.png")
+                img_path = os.path.join(output_path_img, f"img{i}_{loop_counter_2:04d}.png")
 
                 output_path_txt = os.path.join(output_path, r"labels\train")
-                txt_path = os.path.join(output_path_txt, f"img{i}_{loop_counter_1:04d}.txt")
+                txt_path = os.path.join(output_path_txt, f"img{i}_{loop_counter_2:04d}.txt")
             
             scene.render.filepath = img_path
             bpy.ops.render.render(write_still=True)
 
             bbox = [cx, cy, w, h]
             save_yolo_format(txt_path, bbox, key_point_list)
-            loop_counter_1 += 1
+            loop_counter_2 += 1
             scene.view_layers.update()
         loop_counter_1 += 1
 
@@ -226,7 +226,7 @@ def main():
 
         Sun = bpy.data.objects[f'Sun.{i:03d}']
         scene.camera = camera
-        change_of_scene(i + 1, num_scenes)
+        change_of_scene(i, num_scenes)
         Generate_data(i, ugv, key_points, Sun, camera, scene, num_attr)
 
     print("Data Generated!")
