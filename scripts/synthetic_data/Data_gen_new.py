@@ -56,7 +56,7 @@ def Generate_data(i, ugv, key_points, Sun, camera, scene, num_attr):
 
 
 def main():
-    num_scenes = 8
+    num_scenes = 2
     num_attr = 13
     key_points = {}
 
