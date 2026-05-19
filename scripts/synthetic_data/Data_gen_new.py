@@ -7,13 +7,14 @@ from bpy_extras.object_utils import world_to_camera_view
 import os
 import time
 
-
 scene = bpy.context.scene
 
-output_path = "/home/christoffer/Slarc_dva513/Data/Train_val_test"
+output_path = r"C:\Data_dva513\Data\Train_val_test"
 object_data = []
 class_map = {}
 collections = []
+random_obj_collections = []
+random_obj = 7
 
 img_width = int(scene.render.resolution_x * scene.render.resolution_percentage / 100)
 img_height = int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
@@ -25,11 +26,14 @@ phi_start = 0
 phi_end = math.radians(25)
 radius = 0.5
 
-
 #_______Collections_________#
 def init_scenes(num_of_scenes):
     for i in range(0, num_of_scenes):
         collections.append(bpy.data.collections[f'Collection.{i:02d}']) 
+
+def init_random_obj(random_obj):
+    for i in range(1, random_obj):
+        random_obj_collections.append(bpy.data.collections[f'Rand_coll.{i:02d}'])
 
 def disable_collection(collection, state):
     for obj in collection.all_objects:
@@ -44,6 +48,11 @@ def change_of_scene(collection_id, num_of_scenes):
             state = True
         disable_collection(collections[i], state)
 
+def handle_object(collection_id, state):
+    for obj in random_obj_collections[collection_id].all_objects:
+        obj.hide_set(state)
+    random_obj_collections[collection_id].hide_render = state
+    
 #__________data_handling_________#
 def map_objects(obj):
     name = obj.name.split('.')[0]
@@ -165,6 +174,19 @@ def change_sun(Sun, ugv, loop_1):
 
     bpy.context.view_layer.update()
 
+def change_random_obj():
+    for i in range(0, len(random_obj_collections) - 1):
+        handle_object(i, False)
+
+    random_obj_coll = []
+    random_obj_num = random.randint(0, len(random_obj_collections) - 1)
+    for i in range(1, random_obj_num):
+        random_obj_coll.append(random.randint(0, len(random_obj_collections) - 1))
+
+    for i in range(0, len(random_obj_coll) - 1):
+        scene_index = random_obj_coll[i] 
+        handle_object(scene_index, True) #True hides the obj False shows it 
+
 #____________Data Generation_______________#
 def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
     loop_size_i = 10
@@ -185,6 +207,8 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
     for i in range(loop_size_i):
         change_ugv_loc(ugv)
         change_sun(Sun, ugv, loop_counter_1)
+        init_random_obj(random_obj)
+        change_random_obj()
         if camera.location.z > 5:
             camera.location.z -= 1
         else:
@@ -206,17 +230,17 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
                 key_point_list.extend([x,y,vis])
         
             if num == 6 or num == 7:
-                output_path_img = os.path.join(output_path, "images/val")
+                output_path_img = os.path.join(output_path, r"images\val")
                 img_path = os.path.join(output_path_img, f"img{num}_{loop_counter_2:04d}.png")
 
-                output_path_txt = os.path.join(output_path, "labels/val") 
+                output_path_txt = os.path.join(output_path, r"labels\val") 
                 txt_path = os.path.join(output_path_txt, f"img{num}_{loop_counter_2:04d}.txt")
 
             else:
-                output_path_img = os.path.join(output_path, "images/train")
+                output_path_img = os.path.join(output_path, r"images\train")
                 img_path = os.path.join(output_path_img, f"img{num}_{loop_counter_2:04d}.png")
 
-                output_path_txt = os.path.join(output_path, "labels/train")
+                output_path_txt = os.path.join(output_path, r"labels\train")
                 txt_path = os.path.join(output_path_txt, f"img{num}_{loop_counter_2:04d}.txt")
             
             scene.render.filepath = img_path
@@ -228,7 +252,6 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
             bpy.context.view_layer.update()
         loop_counter_1 += 1
 
-        
 #_____main_____#
 def main():
     num_scenes = 1
