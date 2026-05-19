@@ -18,6 +18,14 @@ collections = []
 img_width = int(scene.render.resolution_x * scene.render.resolution_percentage / 100)
 img_height = int(scene.render.resolution_y * scene.render.resolution_percentage / 100)
 
+theta_start = 0
+theta_end = 2 * math.pi
+last_loop = 0
+phi_start = 0
+phi_end = math.radians(25)
+radius = 0.5
+
+
 #_______Collections_________#
 def init_scenes(num_of_scenes):
     for i in range(0, num_of_scenes):
@@ -115,37 +123,32 @@ def save_yolo_format(text_path, bbox, keypoints):
 
 #___________Objects_____________#
 def change_ugv_loc(ugv):
-    ugv_x = ugv.location.x
-    ugv_y = ugv.location.y
+    ugv_x = 0
+    ugv_y = 0
 
-    ugv.location.x = ugv_x + random.uniform(-1, 1)
-    ugv.location.y = ugv_y + random.uniform(-1, 1)
+    ugv.location.x = ugv_x
+    ugv.location.y = ugv_y
 
-def camera_location(camera, ugv, loop_2, loop_1, orbit_radius):
-    angle = loop_2 * 0.1
+def camera_location(camera, ugv, loop_2, loop_1, orbit_radius, num_pic_H, num_pic_V):    
+    global last_loop, radius
     
-    camera.location.x = (
-            ugv.location.x
-            + orbit_radius * math.cos(angle)
-    )
-    camera.location.y = (
-            ugv.location.y
-            + orbit_radius * math.cos(angle)
-    )
-
-    if loop_1 == 0: 
-        camera.rotation_euler[2] = angle
-
+    phi = phi_start + (loop_1 / (num_pic_V - 1)) * (phi_end - phi_start)
+    theta = theta_start + (loop_2 / 20) * 2 * math.pi 
+    if last_loop != loop_1:
+        z = camera.location.z - 1
+        radius += 1
     else:
-        camera.rotation_euler[2] = 0
-        direction = ugv.location - camera.location
-        camera.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
-        
-    bpy.context.view_layer.update()
+        z = camera.location.z 
 
-def camera_params(camera, orbit_radius):
-    orbit_radius += 1
-    camera.location.z -= 1
+    x = ugv.location.x + radius  * math.cos(theta)
+    y = ugv.location.y + radius * math.sin(theta)
+    camera.location = (x, y, z)
+    direction = ugv.location - camera.location
+    camera.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
+    
+    print(f"{x} {y} {z} {radius}")
+    last_loop = loop_1
+    bpy.context.view_layer.update()
 
 def change_sun(Sun, ugv, loop_1):
     radius = 20
@@ -164,12 +167,15 @@ def change_sun(Sun, ugv, loop_1):
 
 #____________Data Generation_______________#
 def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
-    loop_size_i = 2
-    loop_size_j = 5
-
-    camera.location.z = 20
+    loop_size_i = 10
+    loop_size_j = 3
     loop_counter_1 = 0
     loop_counter_2 = 0
+    
+    #__________Initialize the camera_______#
+    camera.location.x = ugv.location.x + random.uniform(-0.2, 0.2)
+    camera.location.y = ugv.location.x + random.uniform(-0.2, 0.2)
+    camera.location.z = 20
     camera.rotation_euler[0] = 0
     camera.rotation_euler[1] = 0
     camera.rotation_euler[2] = 0
@@ -179,7 +185,6 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
     for i in range(loop_size_i):
         change_ugv_loc(ugv)
         change_sun(Sun, ugv, loop_counter_1)
-        camera_params(camera, orbit_radius) 
         if camera.location.z > 5:
             camera.location.z -= 1
         else:
@@ -188,7 +193,7 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
             bpy.context.view_layer.update()
             object_data.clear()
             
-            camera_location(camera, ugv, loop_counter_2, loop_counter_1, orbit_radius)
+            camera_location(camera, ugv, loop_counter_2, loop_counter_1, orbit_radius, loop_size_j, loop_size_i)
 
             cx, cy, w, h = get_bbox(ugv, camera, scene)
 
@@ -226,7 +231,7 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
         
 #_____main_____#
 def main():
-    num_scenes = 2
+    num_scenes = 1
     num_attr = 13
     key_points = {}
 
