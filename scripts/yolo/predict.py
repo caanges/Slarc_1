@@ -1,4 +1,5 @@
-#pip install opencv-contrib-python
+# pip install opencv-contrib-python
+
 import cv2
 import numpy as np
 from ultralytics import YOLO
@@ -44,6 +45,12 @@ aruco_detector = cv2.aruco.ArucoDetector(
 # ============================================
 
 MARKER_SIZE = 0.20
+
+# ============================================
+# TARGET IDS
+# ============================================
+
+TARGET_IDS = [0, 69]
 
 # ============================================
 # AXIS FOR DRAWING
@@ -153,7 +160,6 @@ if result.keypoints is not None and len(result.keypoints.xy) > 0:
             # R[:,0]
             # R[:,1]
             # -R[:,2]
-            # depending on your robot coordinate system
 
             forward_yolo = R_yolo[:, 2]
 
@@ -227,7 +233,11 @@ print("\nDetected IDs:", ids)
 
 print("Rejected candidates:", len(rejected))
 
-forward_aruco = None
+# ============================================
+# STORE ARUCO FORWARD VECTORS
+# ============================================
+
+forward_vectors = []
 
 if ids is not None:
 
@@ -259,17 +269,31 @@ if ids is not None:
         pnp.dist_coeffs
     )
 
+    # ============================================
+    # LOOP THROUGH DETECTED TAGS
+    # ============================================
+
     for i in range(len(ids)):
 
         marker_id = ids[i][0]
 
         print(f"\nMarker ID: {marker_id}")
 
+        # ============================================
+        # IGNORE OTHER IDS
+        # ============================================
+
+        if marker_id not in TARGET_IDS:
+
+            continue
+
+        print("Using this marker")
+
         rvec_gt = rvecs[i]
         tvec_gt = tvecs[i]
 
         # ============================================
-        # DRAW ARUCO AXIS
+        # DRAW AXIS
         # ============================================
 
         cv2.drawFrameAxes(
@@ -297,7 +321,7 @@ if ids is not None:
         # FORWARD VECTOR
         # ============================================
 
-        # May need:
+        # You may later need:
         # R_gt[:,0]
         # R_gt[:,1]
         # -R_gt[:,2]
@@ -312,7 +336,13 @@ if ids is not None:
         print("\nARUCO Forward:")
         print(forward_aruco)
 
-        break
+        # ============================================
+        # STORE VECTOR
+        # ============================================
+
+        forward_vectors.append(
+            forward_aruco
+        )
 
 else:
 
@@ -324,12 +354,48 @@ else:
 
 if (
     forward_yolo is not None and
-    forward_aruco is not None
+    len(forward_vectors) > 0
 ):
+
+    print(
+        f"\nUsing {len(forward_vectors)} "
+        f"ARUCO marker(s)"
+    )
+
+    if len(forward_vectors) == 1:
+
+        print(
+            "WARNING: Only one ARUCO "
+            "marker detected"
+        )
+
+    # ============================================
+    # AVERAGE ARUCO FORWARD VECTOR
+    # ============================================
+
+    avg_forward = np.mean(
+        forward_vectors,
+        axis=0
+    )
+
+    avg_forward = (
+        avg_forward /
+        np.linalg.norm(avg_forward)
+    )
+
+    print("\nAVERAGE ARUCO FORWARD:")
+    print(avg_forward)
+
+    print("\nYOLO FORWARD:")
+    print(forward_yolo)
+
+    # ============================================
+    # ANGULAR ERROR
+    # ============================================
 
     dot = np.dot(
         forward_yolo,
-        forward_aruco
+        avg_forward
     )
 
     dot = np.clip(
@@ -362,6 +428,12 @@ if (
         (0, 255, 255),
 
         2
+    )
+
+else:
+
+    print(
+        "\nCould not compute angular error"
     )
 
 # ============================================
@@ -411,3 +483,5 @@ while True:
         break
 
 cv2.destroyAllWindows()
+
+cv2.waitKey(1)
