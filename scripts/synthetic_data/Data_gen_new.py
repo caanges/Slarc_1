@@ -10,7 +10,7 @@ import time
 
 scene = bpy.context.scene
 
-output_path = r"C:\Data_dva513\Data\Train_val_test"
+output_path = "/home/christoffer/Slarc_dva513/Data/Train_val_test"
 object_data = []
 class_map = {}
 collections = []
@@ -121,26 +121,31 @@ def change_ugv_loc(ugv):
     ugv.location.x = ugv_x + random.uniform(-1, 1)
     ugv.location.y = ugv_y + random.uniform(-1, 1)
 
-def camera_location(camera, ugv, loop_2):
-
-    orbit_radius = random.uniform(0.5, 2.0)
+def camera_location(camera, ugv, loop_2, loop_1, orbit_radius):
     angle = loop_2 * 0.1
     
     camera.location.x = (
             ugv.location.x
             + orbit_radius * math.cos(angle)
-            + random.uniform(-0.3, 0.3)
-        )
+    )
     camera.location.y = (
             ugv.location.y
             + orbit_radius * math.cos(angle)
-            +random.uniform(-0.3, 0.3)
-        )
-    
+    )
 
-    
+    if loop_1 == 0: 
+        camera.rotation_euler[2] = angle
+
+    else:
+        camera.rotation_euler[2] = 0
+        direction = ugv.location - camera.location
+        camera.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
+        
     bpy.context.view_layer.update()
 
+def camera_params(camera, orbit_radius):
+    orbit_radius += 1
+    camera.location.z -= 1
 
 def change_sun(Sun, ugv, loop_1):
     radius = 20
@@ -159,7 +164,7 @@ def change_sun(Sun, ugv, loop_1):
 
 #____________Data Generation_______________#
 def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
-    loop_size_i = 5
+    loop_size_i = 2
     loop_size_j = 5
 
     camera.location.z = 20
@@ -169,10 +174,12 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
     camera.rotation_euler[1] = 0
     camera.rotation_euler[2] = 0
     camera.location.z = 20
+    orbit_radius = 0.5
 
     for i in range(loop_size_i):
         change_ugv_loc(ugv)
         change_sun(Sun, ugv, loop_counter_1)
+        camera_params(camera, orbit_radius) 
         if camera.location.z > 5:
             camera.location.z -= 1
         else:
@@ -181,7 +188,7 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
             bpy.context.view_layer.update()
             object_data.clear()
             
-            camera_location(camera, ugv, loop_counter_2)
+            camera_location(camera, ugv, loop_counter_2, loop_counter_1, orbit_radius)
 
             cx, cy, w, h = get_bbox(ugv, camera, scene)
 
@@ -194,18 +201,18 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
                 key_point_list.extend([x,y,vis])
         
             if num == 6 or num == 7:
-                output_path_img = os.path.join(output_path, r"images\val")
-                img_path = os.path.join(output_path_img, f"img{i}_{loop_counter_2:04d}.png")
+                output_path_img = os.path.join(output_path, "images/val")
+                img_path = os.path.join(output_path_img, f"img{num}_{loop_counter_2:04d}.png")
 
-                output_path_txt = os.path.join(output_path, r"labels\val")
-                txt_path = os.path.join(output_path_txt, f"img{i}_{loop_counter_2:04d}.txt")
+                output_path_txt = os.path.join(output_path, "labels/val") 
+                txt_path = os.path.join(output_path_txt, f"img{num}_{loop_counter_2:04d}.txt")
 
             else:
-                output_path_img = os.path.join(output_path, r"images\train")
-                img_path = os.path.join(output_path_img, f"img{i}_{loop_counter_2:04d}.png")
+                output_path_img = os.path.join(output_path, "images/train")
+                img_path = os.path.join(output_path_img, f"img{num}_{loop_counter_2:04d}.png")
 
-                output_path_txt = os.path.join(output_path, r"labels\train")
-                txt_path = os.path.join(output_path_txt, f"img{i}_{loop_counter_2:04d}.txt")
+                output_path_txt = os.path.join(output_path, "labels/train")
+                txt_path = os.path.join(output_path_txt, f"img{num}_{loop_counter_2:04d}.txt")
             
             scene.render.filepath = img_path
             bpy.ops.render.render(write_still=True)
@@ -225,7 +232,7 @@ def main():
 
     init_scenes(num_scenes) 
 
-    for i in range(0, num_scenes + 1):
+    for i in range(0, num_scenes):
         camera = bpy.data.objects[f'Camera.{i:03d}']
         ugv = bpy.data.objects[f'UGV.{i:03d}']
         for j in range(0, num_attr):
