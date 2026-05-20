@@ -102,14 +102,14 @@ for IMAGE_PATH in image_paths:
 
                 R_yolo, _ = cv2.Rodrigues(rvec)
 
-                forward = R_yolo[:,2]
+                forward = R_yolo[:,1]
 
                 forward /= np.linalg.norm(forward)
 
                 yaw_yolo = np.degrees(
                     np.arctan2(
                         forward[0],
-                        forward[2]
+                        forward[1]
                     )
                 )
 
@@ -139,14 +139,14 @@ for IMAGE_PATH in image_paths:
 
             R_gt, _ = cv2.Rodrigues(rvecs[i])
 
-            forward_gt = R_gt[:,2]
+            forward_gt = R_gt[:,1]
 
             forward_gt /= np.linalg.norm(forward_gt)
 
             yaw_gt = np.degrees(
                 np.arctan2(
                     forward_gt[0],
-                    forward_gt[2]
+                    forward_gt[1]
                 )
             )
 
@@ -219,7 +219,7 @@ for IMAGE_PATH in image_paths:
 
         R_temp, _ = cv2.Rodrigues(rvec_temp)
 
-        forward_temp = R_temp[:,2]
+        forward_temp = R_temp[:,1]
 
         forward_temp /= np.linalg.norm(
             forward_temp
@@ -228,7 +228,7 @@ for IMAGE_PATH in image_paths:
         yaw_temp = np.degrees(
             np.arctan2(
                 forward_temp[0],
-                forward_temp[2]
+                forward_temp[1]
             )
         )
 

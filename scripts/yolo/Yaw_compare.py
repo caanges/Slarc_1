@@ -8,7 +8,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / "PnP"))
 from FinalePnP import PnP_processing
 
 MODEL_PATH = r"C:\Users\een23013\Slarc_1\scripts\yolo\runs\pose\runs\pose\yolov8n_custom_new-5\weights\best.pt"
-IMAGE_PATH = r"C:\Users\een23013\Downloads\validation_bridge_occlusion\validation_bridge_occlusion\image5001.png"
+IMAGE_PATH = r"C:\Users\een23013\Downloads\validation_bridge_occlusion\validation_bridge_occlusion\image5015.png"
 
 model = YOLO(MODEL_PATH)
 pnp = PnP_processing()
@@ -117,14 +117,14 @@ if result.keypoints is not None and len(result.keypoints.xy) > 0:
             # TEST AXIS
             # =========================================================
 
-            forward = R_yolo[:,2]
+            forward = R_yolo[:,1]
 
             forward /= np.linalg.norm(forward)
 
             forward_yolo_3d = forward
 
             yaw_yolo = np.degrees(
-                np.arctan2(forward[0], forward[2])
+                np.arctan2(forward[0], forward[1])
             )
 
             # =========================================================
@@ -147,37 +147,28 @@ if result.keypoints is not None and len(result.keypoints.xy) > 0:
             cv2.line(annotated, o, tuple(imgpts[2]), (0,255,0), 3)
             cv2.line(annotated, o, tuple(imgpts[3]), (255,0,0), 3)
 
+             # =========================================================
+            # PLOT YAW DIRECTION
             # =========================================================
-            # PLOT YOLO 3D FORWARD VECTOR
-            # =========================================================
 
-            origin = tvec.reshape(3)
+            center = tuple(imgpts[0])
 
-            forward_tip_3d = origin + forward * 0.5
+            arrow_length = 120
 
-            o3d, _ = cv2.projectPoints(
-                origin.reshape(1,3),
-                np.zeros((3,1)),
-                np.zeros((3,1)),
-                pnp.camera_matrix,
-                pnp.dist_coeffs
+            yaw_rad = np.radians(yaw_yolo)
+
+            end_x = int(
+                center[0] - arrow_length * np.sin(yaw_rad)
             )
 
-            t3d, _ = cv2.projectPoints(
-                forward_tip_3d.reshape(1,3),
-                np.zeros((3,1)),
-                np.zeros((3,1)),
-                pnp.camera_matrix,
-                pnp.dist_coeffs
+            end_y = int(
+                center[1] + arrow_length * np.cos(yaw_rad)
             )
-
-            o3d = o3d.ravel().astype(int)
-            t3d = t3d.ravel().astype(int)
 
             cv2.arrowedLine(
                 annotated,
-                tuple(o3d),
-                tuple(t3d),
+                center,
+                (end_x, end_y),
                 (0,255,255),
                 4,
                 tipLength=0.2
@@ -185,15 +176,15 @@ if result.keypoints is not None and len(result.keypoints.xy) > 0:
 
             cv2.putText(
                 annotated,
-                "Y",
-                (t3d[0], t3d[1]),
+                f"Yaw: {yaw_yolo:.1f}",
+                (center[0]+10, center[1]-10),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.7,
                 (0,255,255),
                 2
             )
 
-            
+
 # =========================================================
 # ARUCO
 # =========================================================
@@ -229,14 +220,14 @@ if ids is not None:
         # SAME TEST AXIS
         # =========================================================
 
-        forward = R_gt[:,2]
+        forward = R_gt[:,1]
 
         forward /= np.linalg.norm(forward)
 
         aruco_3d_list.append(forward)
 
         yaw = np.degrees(
-            np.arctan2(forward[0], forward[2])
+            np.arctan2(forward[0], forward[1])
         )
 
         aruco_yaw_list.append(yaw)
@@ -373,6 +364,11 @@ if (
 # KEYPOINT REMOVAL IMPACT ON YAW
 # =========================================================
 
+yaw_aruco = np.mean(aruco_yaw_list)
+
+base_yaw_error = abs(yaw_yolo - yaw_aruco)
+base_yaw_error = min(base_yaw_error, 360 - base_yaw_error)
+
 print("\nKEYPOINT REMOVAL IMPACT:")
 
 if (
@@ -418,7 +414,7 @@ if (
 
         R_temp, _ = cv2.Rodrigues(rvec_temp)
 
-        forward_temp = R_temp[:,2]
+        forward_temp = R_temp[:,1]
 
         forward_temp /= np.linalg.norm(
             forward_temp
@@ -427,23 +423,27 @@ if (
         yaw_temp = np.degrees(
             np.arctan2(
                 forward_temp[0],
-                forward_temp[2]
+                forward_temp[1]
             )
         )
 
-        yaw_change = abs(
-            yaw_temp - yaw_yolo
+        temp_yaw_error = abs(
+            yaw_temp - yaw_aruco
         )
 
-        yaw_change = min(
-            yaw_change,
-            360 - yaw_change
+        temp_yaw_error = min(
+            temp_yaw_error,
+            360 - temp_yaw_error
+        )
+
+        yaw_change = abs(
+            temp_yaw_error - base_yaw_error
         )
 
         print(
             f"KP {remove_idx} "
             f"removed -> "
-            f"Yaw change: {yaw_change:.3f}"
+            f"Yaw error change: {yaw_change:.3f}"
         )
 
 # =========================================================
