@@ -53,6 +53,30 @@ def handle_object(collection_id, state):
         obj.hide_set(state)
     random_obj_collections[collection_id].hide_render = state
     
+#________Blur_________#
+def setup_compositor(use_blur=False, blur_strength = 8):
+    scene = bpy.context.scene
+    scene.use_nodes = True
+
+    tree = scene.node_tree
+    nodes = tree.nodes
+    links = tree.links
+
+    nodes.clear()
+
+    render_layers = nodes.new("CompositorNodeRLayers")
+    composite = nodes.new("CompositorNodeComposite")
+
+    if use_blur:
+        blur = nodes.new("CompositorNodeBlur")
+        blur.size_x = blur_strength
+        blur.size_y = blur_strength
+
+        links.new(render_layers.outputs["Image"], blur.inputs["Image"])
+        links.new(blur.outputs["Image"], composite.inputs["Image"])
+    else:
+        links.new(render_layers.outputs["Image"], composite.inputs["Image"])
+
 #__________data_handling_________#
 def map_objects(obj):
     name = obj.name.split('.')[0]
@@ -142,10 +166,10 @@ def camera_location(camera, ugv, loop_2, loop_1, orbit_radius, num_pic_H, num_pi
     global last_loop, radius
     
     phi = phi_start + (loop_1 / (num_pic_V - 1)) * (phi_end - phi_start)
-    theta = theta_start + (loop_2 / 20) * 2 * math.pi 
+    theta = theta_start + (loop_2 / 100) * 2 * math.pi 
     if last_loop != loop_1:
-        z = camera.location.z - 1
-        radius += 1
+        z = camera.location.z - 0.1
+        radius += +0.5
     else:
         z = camera.location.z 
 
@@ -159,15 +183,16 @@ def camera_location(camera, ugv, loop_2, loop_1, orbit_radius, num_pic_H, num_pi
     last_loop = loop_1
     bpy.context.view_layer.update()
 
-def change_sun(Sun, ugv, loop_1):
+def change_sun(Sun, ugv, loop_1, loop_2):
     radius = 20
-    angle = loop_1 * 0.1
+    theta = loop_2 * 0.1
+    alpha = loop_1 * 0.2
 
-    x = ugv.location.x + radius * math.cos(angle)
-    y = ugv.location.y + radius * math.sin(angle)
-    z = ugv.location.z + 10 * abs(math.sin(angle))
+    x = ugv.location.x + radius * math.cos(theta)
+    y = ugv.location.y + radius * math.sin(theta)
+    z = ugv.location.z + 30 * abs(math.sin(alpha))
 
-    Sun.data.energy = 10
+    Sun.data.energy = random.uniform(7.5, 12.5)
     sun_pos = mathutils.Vector((x, y, z))
     direction = ugv.location - sun_pos
     Sun.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
@@ -188,37 +213,35 @@ def change_random_obj():
         handle_object(scene_index, True) #True hides the obj False shows it 
 
 #____________Data Generation_______________#
-def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
+def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr, level):
+    global radius
     loop_size_i = 10
-    loop_size_j = 3
+    loop_size_j = 5
     loop_counter_1 = 0
     loop_counter_2 = 0
     
     #__________Initialize the camera_______#
     camera.location.x = ugv.location.x + random.uniform(-0.2, 0.2)
     camera.location.y = ugv.location.x + random.uniform(-0.2, 0.2)
-    camera.location.z = 20
+    camera.location.z = 30 - (level * 5)
     camera.rotation_euler[0] = 0
     camera.rotation_euler[1] = 0
     camera.rotation_euler[2] = 0
-    camera.location.z = 20
     orbit_radius = 0.5
+    radius = 0.5
+    #initialize the sun
+    change_sun(Sun, ugv, 1, 1)
 
     for i in range(loop_size_i):
         change_ugv_loc(ugv)
-        change_sun(Sun, ugv, loop_counter_1)
         init_random_obj(random_obj)
         change_random_obj()
-        if camera.location.z > 5:
-            camera.location.z -= 1
-        else:
-            camera.location.z = 20
         for j in range(loop_size_j):
             bpy.context.view_layer.update()
             object_data.clear()
             
             camera_location(camera, ugv, loop_counter_2, loop_counter_1, orbit_radius, loop_size_j, loop_size_i)
-
+            change_sun(Sun, ugv, loop_counter_1 + 1, loop_counter_2 + 1)
             cx, cy, w, h = get_bbox(ugv, camera, scene)
 
             key_point_list = []
@@ -243,6 +266,10 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
                 output_path_txt = os.path.join(output_path, r"labels\train")
                 txt_path = os.path.join(output_path_txt, f"img{num}_{loop_counter_2:04d}.txt")
             
+            blur_level = random.randint(3, 9)
+            use_blur = (loop_counter_2 % 5 == 0)
+            setup_compositor(use_blur=use_blur, blur_strength = blur_level)
+
             scene.render.filepath = img_path
             bpy.ops.render.render(write_still=True)
 
@@ -255,12 +282,15 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr):
 #_____main_____#
 def main():
     num_scenes = 1
+    levels = 5
+    level = 0
+    tot_dif_num = levels * num_scenes
     num_attr = 13
     key_points = {}
 
     init_scenes(num_scenes) 
 
-    for i in range(0, num_scenes):
+    for i in range(0, tot_dif_num):
         camera = bpy.data.objects[f'Camera.{i:03d}']
         ugv = bpy.data.objects[f'UGV.{i:03d}']
         for j in range(0, num_attr):
@@ -269,8 +299,10 @@ def main():
 
         Sun = bpy.data.objects[f'Sun.{i:03d}']
         scene.camera = camera
-        change_of_scene(i, num_scenes)
-        Generate_data(i, ugv, key_points, Sun, camera, scene, num_attr)
+        if (i % levels) == 0:
+            change_of_scene(i, num_scenes)
+        Generate_data(i, ugv, key_points, Sun, camera, scene, num_attr, level)
+        level += 1
 
     print("Data Generated!")
      
