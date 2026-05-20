@@ -1,3 +1,5 @@
+# pip install opencv-contrib-python
+
 #pip install opencv-contrib-python
 import cv2
 import numpy as np
@@ -44,6 +46,12 @@ aruco_detector = cv2.aruco.ArucoDetector(
 # ============================================
 
 MARKER_SIZE = 0.20
+
+# ============================================
+# TARGET IDS
+# ============================================
+
+TARGET_IDS = [0, 69]
 
 # ============================================
 # AXIS FOR DRAWING
@@ -227,6 +235,11 @@ print("\nDetected IDs:", ids)
 
 print("Rejected candidates:", len(rejected))
 
+# ============================================
+# STORE ARUCO FORWARD VECTORS
+# ============================================
+
+forward_vectors = []
 forward_aruco = None
 
 if ids is not None:
@@ -259,16 +272,31 @@ if ids is not None:
         pnp.dist_coeffs
     )
 
+    # ============================================
+    # LOOP THROUGH DETECTED TAGS
+    # ============================================
+
     for i in range(len(ids)):
 
         marker_id = ids[i][0]
 
         print(f"\nMarker ID: {marker_id}")
 
+        # ============================================
+        # IGNORE OTHER IDS
+        # ============================================
+
+        if marker_id not in TARGET_IDS:
+
+            continue
+
+        print("Using this marker")
+
         rvec_gt = rvecs[i]
         tvec_gt = tvecs[i]
 
         # ============================================
+        # DRAW AXIS
         # DRAW ARUCO AXIS
         # ============================================
 
@@ -297,6 +325,7 @@ if ids is not None:
         # FORWARD VECTOR
         # ============================================
 
+        # You may later need:
         # May need:
         # R_gt[:,0]
         # R_gt[:,1]
@@ -312,6 +341,13 @@ if ids is not None:
         print("\nARUCO Forward:")
         print(forward_aruco)
 
+        # ============================================
+        # STORE VECTOR
+        # ============================================
+
+        forward_vectors.append(
+            forward_aruco
+        )
         break
 
 else:
@@ -324,6 +360,48 @@ else:
 
 if (
     forward_yolo is not None and
+    len(forward_vectors) > 0
+):
+
+    print(
+        f"\nUsing {len(forward_vectors)} "
+        f"ARUCO marker(s)"
+    )
+
+    if len(forward_vectors) == 1:
+
+        print(
+            "WARNING: Only one ARUCO "
+            "marker detected"
+        )
+
+    # ============================================
+    # AVERAGE ARUCO FORWARD VECTOR
+    # ============================================
+
+    avg_forward = np.mean(
+        forward_vectors,
+        axis=0
+    )
+
+    avg_forward = (
+        avg_forward /
+        np.linalg.norm(avg_forward)
+    )
+
+    print("\nAVERAGE ARUCO FORWARD:")
+    print(avg_forward)
+
+    print("\nYOLO FORWARD:")
+    print(forward_yolo)
+
+    # ============================================
+    # ANGULAR ERROR
+    # ============================================
+
+    dot = np.dot(
+        forward_yolo,
+        avg_forward
     forward_aruco is not None
 ):
 
@@ -364,6 +442,12 @@ if (
         2
     )
 
+else:
+
+    print(
+        "\nCould not compute angular error"
+    )
+
 # ============================================
 # RESIZE FOR DISPLAY
 # ============================================
@@ -372,6 +456,47 @@ screen_width = 1280
 screen_height = 720
 
 h, w = annotated.shape[:2]
+
+scale = min(
+    screen_width / w,
+    screen_height / h
+)
+
+new_w = int(w * scale)
+
+new_h = int(h * scale)
+
+resized_img = cv2.resize(
+    annotated,
+    (new_w, new_h)
+)
+
+# ============================================
+# SHOW
+# ============================================
+
+cv2.imshow(
+    "YOLO vs ARUCO",
+    resized_img
+)
+
+print("\nPress Q or ESC to quit")
+
+while True:
+
+    key = cv2.waitKey(1)
+
+    # ESC
+    if key == 27:
+        break
+
+    # Q
+    if key == ord("q"):
+        break
+
+cv2.destroyAllWindows()
+
+cv2.waitKey(1)
 
 scale = min(
     screen_width / w,
