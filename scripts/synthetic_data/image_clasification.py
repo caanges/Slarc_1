@@ -5,11 +5,11 @@ import os
 OUT_DIR = r"C:\Data_dva513\Data\classified_data"
 
 def load_data(pic_id, labeling_id):
-    img_path =r"C:\Data_dva513\Data\Data_img\Gen_data\images"
+    img_path =r"C:\Data_dva513\Data\Train_val_test\images\train"
     image_id = f"img{labeling_id}_{pic_id:04d}.png"
     full_path = os.path.join(img_path, image_id)
 
-    labeling_path = r"C:\Data_dva513\Data\Data_img\Gen_data\text"
+    labeling_path = r"C:\Data_dva513\Data\Train_val_test\labels\train"
     labeling_id = f"img{labeling_id}_{pic_id:04d}.txt"
     ful_label_path = os.path.join(labeling_path, labeling_id)
 
@@ -70,7 +70,7 @@ def save_img(out_path, img):
 
 def main():
     number_of_scenes = 5
-    size_per_scene = 250
+    size_per_scene = 50
     for j in range(0, number_of_scenes):
         for i in range(0, size_per_scene):
             load_data(i, j)

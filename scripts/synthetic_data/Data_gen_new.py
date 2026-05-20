@@ -32,7 +32,7 @@ def init_scenes(num_of_scenes):
         collections.append(bpy.data.collections[f'Collection.{i:02d}']) 
 
 def init_random_obj(random_obj):
-    for i in range(1, random_obj):
+    for i in range(1, random_obj + 1):
         random_obj_collections.append(bpy.data.collections[f'Rand_coll.{i:02d}'])
 
 def disable_collection(collection, state):
@@ -161,12 +161,13 @@ def change_ugv_loc(ugv):
 
     ugv.location.x = ugv_x
     ugv.location.y = ugv_y
+    ugv.rotation_euler[2] = random.uniform(0, math.pi)
 
 def camera_location(camera, ugv, loop_2, loop_1, orbit_radius, num_pic_H, num_pic_V):    
     global last_loop, radius
     
     phi = phi_start + (loop_1 / (num_pic_V - 1)) * (phi_end - phi_start)
-    theta = theta_start + (loop_2 / 100) * 2 * math.pi 
+    theta = theta_start + (loop_2 / num_pic_H) * 2 * math.pi 
     if last_loop != loop_1:
         z = camera.location.z - 0.1
         radius += +0.5
@@ -200,17 +201,14 @@ def change_sun(Sun, ugv, loop_1, loop_2):
     bpy.context.view_layer.update()
 
 def change_random_obj():
-    for i in range(0, len(random_obj_collections) - 1):
+    for i in range(0, len(random_obj_collections)):
         handle_object(i, False)
 
-    random_obj_coll = []
-    random_obj_num = random.randint(0, len(random_obj_collections) - 1)
-    for i in range(1, random_obj_num):
-        random_obj_coll.append(random.randint(0, len(random_obj_collections) - 1))
+    random_obj_num = random.randint(0, len(random_obj_collections))
+    chosen = random.sample(range(len(random_obj_collections)), random_obj_num)
 
-    for i in range(0, len(random_obj_coll) - 1):
-        scene_index = random_obj_coll[i] 
-        handle_object(scene_index, True) #True hides the obj False shows it 
+    for idx in chosen:
+        handle_object(idx, True)
 
 #____________Data Generation_______________#
 def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr, level):
@@ -219,6 +217,7 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr, level):
     loop_size_j = 5
     loop_counter_1 = 0
     loop_counter_2 = 0
+    random.seed(num)
     
     #__________Initialize the camera_______#
     camera.location.x = ugv.location.x + random.uniform(-0.2, 0.2)
@@ -234,7 +233,7 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr, level):
 
     for i in range(loop_size_i):
         change_ugv_loc(ugv)
-        init_random_obj(random_obj)
+        
         change_random_obj()
         for j in range(loop_size_j):
             bpy.context.view_layer.update()
@@ -252,7 +251,7 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr, level):
                 vis = visibility(kp, camera, scene)
                 key_point_list.extend([x,y,vis])
         
-            if num == 6 or num == 7:
+            if num == (6*5) or num == (7*5):
                 output_path_img = os.path.join(output_path, r"images\val")
                 img_path = os.path.join(output_path_img, f"img{num}_{loop_counter_2:04d}.png")
 
@@ -281,26 +280,30 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr, level):
 
 #_____main_____#
 def main():
-    num_scenes = 1
+    num_scenes = 8
     levels = 5
     level = 0
     tot_dif_num = levels * num_scenes
     num_attr = 13
     key_points = {}
+    scene_change = 0
 
     init_scenes(num_scenes) 
+    init_random_obj(random_obj)
 
     for i in range(0, tot_dif_num):
-        camera = bpy.data.objects[f'Camera.{i:03d}']
-        ugv = bpy.data.objects[f'UGV.{i:03d}']
+        camera = bpy.data.objects[f'Camera.{scene_change:03d}']
+        ugv = bpy.data.objects[f'UGV.{scene_change:03d}']
         for j in range(0, num_attr):
-            key_points[j] = bpy.data.objects[f'KEYPOINT_{j}.{i:03d}']
+            key_points[j] = bpy.data.objects[f'KEYPOINT_{j}.{scene_change:03d}']
             map_objects(key_points[j])
 
-        Sun = bpy.data.objects[f'Sun.{i:03d}']
+        Sun = bpy.data.objects[f'Sun.{scene_change:03d}']
         scene.camera = camera
         if (i % levels) == 0:
-            change_of_scene(i, num_scenes)
+            change_of_scene(i/levels, num_scenes)
+            level = 0
+            scene_change += 1
         Generate_data(i, ugv, key_points, Sun, camera, scene, num_attr, level)
         level += 1
 
