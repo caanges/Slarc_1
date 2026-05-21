@@ -211,7 +211,7 @@ def change_random_obj():
         handle_object(idx, True)
 
 #____________Data Generation_______________#
-def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr, level):
+def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr, level, scene_min_lev):
     global radius
     loop_size_i = 10
     loop_size_j = 5
@@ -304,7 +304,7 @@ def main():
             change_of_scene(i/levels, num_scenes)
             level = 0
             scene_change += 1
-        Generate_data(i, ugv, key_points, Sun, camera, scene, num_attr, level)
+        Generate_data(i, ugv, key_points, Sun, camera, scene, num_attr, level, scene_change)
         level += 1
 
     print("Data Generated!")
