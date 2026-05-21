@@ -7,6 +7,7 @@ from bpy_extras.object_utils import world_to_camera_view
 import os
 import time
 
+#initialize scene
 scene = bpy.context.scene
 
 output_path = r"C:\Data_dva513\Data\Train_val_test"
@@ -28,19 +29,23 @@ radius = 0.5
 
 #_______Collections_________#
 def init_scenes(num_of_scenes):
+    #Initialize every scene by entering them into the collections list
     for i in range(0, num_of_scenes):
         collections.append(bpy.data.collections[f'Collection.{i:02d}']) 
 
 def init_random_obj(random_obj):
+    #initialize every random object by enter them into the object collections list
     for i in range(1, random_obj + 1):
         random_obj_collections.append(bpy.data.collections[f'Rand_coll.{i:02d}'])
 
 def disable_collection(collection, state):
+    #disable or enable the collections based on the desired state for the collectino
     for obj in collection.all_objects:
         obj.hide_set(state)
     collection.hide_render = state
 
 def change_of_scene(collection_id, num_of_scenes):
+    #get the state to be used in the disable_collection() function
     for i in range(0, num_of_scenes):
         if i == collection_id:
             state = False
@@ -49,6 +54,7 @@ def change_of_scene(collection_id, num_of_scenes):
         disable_collection(collections[i], state)
 
 def handle_object(collection_id, state):
+    #disable or enable diferento objects based on randomised value of object in object list
     for obj in random_obj_collections[collection_id].all_objects:
         obj.hide_set(state)
     random_obj_collections[collection_id].hide_render = state
@@ -58,10 +64,12 @@ def setup_compositor(use_blur=False, blur_strength = 8):
     scene = bpy.context.scene
     scene.use_nodes = True
 
+    #create nodes to allow for blur in image after render
     tree = scene.node_tree
     nodes = tree.nodes
     links = tree.links
 
+    #clear the nodes so old data is not stored
     nodes.clear()
 
     render_layers = nodes.new("CompositorNodeRLayers")
@@ -91,6 +99,9 @@ def map_objects(obj):
 def get_bbox(obj, camera, scene):
     coords = []
 
+    #put every keypoints x, y, w, h in the list coords[]
+    #keypoints use only x and y coordinates wich is calculated later and the width and height are discared. 
+    #Bounding box is used for the UGV
     for corner in obj.bound_box:
         world_coord = obj.matrix_world @ mathutils.Vector(corner)
         co_2D = world_to_camera_view(scene, camera, world_coord)
@@ -113,6 +124,7 @@ def get_bbox(obj, camera, scene):
     return x, y, w, h
 
 def visibility(obj, camera, scene):
+    #check if the keypoints is visible in order to get a visibility score needed for YOLO formating 
     bpy.context.view_layer.update()
     depsgraph = bpy.context.evaluated_depsgraph_get()
 
@@ -122,6 +134,7 @@ def visibility(obj, camera, scene):
     direction = (target - origin).normalized()
     distance = (target - origin).length
 
+    #change the origin slightly by moving it towards the camera such that it is not hiden by it's own features
     origin = origin + direction * 0.01
 
     hit, location, normal, index, hit_obj, matrix = scene.ray_cast(
@@ -149,6 +162,7 @@ def save_yolo_format(text_path, bbox, keypoints):
     class_id = 0
     cx, cy, w, h = bbox
 
+    #save the the data in YOLO format by having all data in one line
     with open(label_path, "w") as f:
         line = f"{class_id} {cx} {cy} {w} {h} "
         line += " ".join(map(str, keypoints))
@@ -156,6 +170,7 @@ def save_yolo_format(text_path, bbox, keypoints):
 
 #___________Objects_____________#
 def change_ugv_loc(ugv):
+    #change the ugv location to get diferent angles 
     ugv_x = 0
     ugv_y = 0
 
@@ -163,7 +178,8 @@ def change_ugv_loc(ugv):
     ugv.location.y = ugv_y
     ugv.rotation_euler[2] = random.uniform(0, math.pi)
 
-def camera_location(camera, ugv, loop_2, loop_1, orbit_radius, num_pic_H, num_pic_V):    
+def camera_location(camera, ugv, loop_2, loop_1, orbit_radius, num_pic_H, num_pic_V): 
+    #move the camera in a semi circle   
     global last_loop, radius
     
     phi = phi_start + (loop_1 / (num_pic_V - 1)) * (phi_end - phi_start)
@@ -180,11 +196,11 @@ def camera_location(camera, ugv, loop_2, loop_1, orbit_radius, num_pic_H, num_pi
     direction = ugv.location - camera.location
     camera.rotation_euler = direction.to_track_quat('-Z', 'Y').to_euler()
     
-    print(f"{x} {y} {z} {radius}")
     last_loop = loop_1
     bpy.context.view_layer.update()
 
 def change_sun(Sun, ugv, loop_1, loop_2):
+    #change the sun to get diferent angles on the sun and shadows with a varying strength of the sun
     radius = 20
     theta = loop_2 * 0.1
     alpha = loop_1 * 0.2
@@ -201,6 +217,8 @@ def change_sun(Sun, ugv, loop_1, loop_2):
     bpy.context.view_layer.update()
 
 def change_random_obj():
+    #get a random number of objects to be used and based on that choose that amount of objects and randomize what objects 
+    #is choosen
     for i in range(0, len(random_obj_collections)):
         handle_object(i, False)
 
@@ -222,7 +240,9 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr, level, sce
     #__________Initialize the camera_______#
     camera.location.x = ugv.location.x + random.uniform(-0.2, 0.2)
     camera.location.y = ugv.location.x + random.uniform(-0.2, 0.2)
-    camera.location.z = 30 - (level * 5)
+    camera.location.z = 30 - (level * 5) 
+    #for every new time Generate_data is run the camera goes down by (level * 5) and then every new scene level is set to 
+    #zero making it start back at Z location 30 and then go down num_level times, geting closer photos of the UGV
     camera.rotation_euler[0] = 0
     camera.rotation_euler[1] = 0
     camera.rotation_euler[2] = 0
@@ -251,13 +271,14 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr, level, sce
                 vis = visibility(kp, camera, scene)
                 key_point_list.extend([x,y,vis])
         
-            if num == (6*5) or num == (7*5):
+            #get the validation data
+            if num >= (6*5):
                 output_path_img = os.path.join(output_path, r"images\val")
                 img_path = os.path.join(output_path_img, f"img{num}_{loop_counter_2:04d}.png")
 
                 output_path_txt = os.path.join(output_path, r"labels\val") 
                 txt_path = os.path.join(output_path_txt, f"img{num}_{loop_counter_2:04d}.txt")
-
+            #get training data
             else:
                 output_path_img = os.path.join(output_path, r"images\train")
                 img_path = os.path.join(output_path_img, f"img{num}_{loop_counter_2:04d}.png")
@@ -290,20 +311,24 @@ def main():
 
     init_scenes(num_scenes) 
     init_random_obj(random_obj)
+    change_of_scene(0, num_scenes)
 
-    for i in range(0, tot_dif_num):
+
+    for i in range(tot_dif_num):
+        scene_change = i // levels
+        level = i % levels
+        change_of_scene(scene_change, num_scenes)
         camera = bpy.data.objects[f'Camera.{scene_change:03d}']
         ugv = bpy.data.objects[f'UGV.{scene_change:03d}']
+
         for j in range(0, num_attr):
             key_points[j] = bpy.data.objects[f'KEYPOINT_{j}.{scene_change:03d}']
             map_objects(key_points[j])
 
         Sun = bpy.data.objects[f'Sun.{scene_change:03d}']
         scene.camera = camera
-        if (i % levels) == 0 and i != 0:
-            change_of_scene(i/levels, num_scenes)
-            level = 0
-            scene_change += 1
+        bpy.context.view_layer.update()
+
         Generate_data(i, ugv, key_points, Sun, camera, scene, num_attr, level, scene_change)
         level += 1
 
