@@ -280,7 +280,7 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr, level, sce
 
 #_____main_____#
 def main():
-    num_scenes = 1
+    num_scenes = 8
     levels = 5
     level = 0
     tot_dif_num = levels * num_scenes
@@ -300,7 +300,7 @@ def main():
 
         Sun = bpy.data.objects[f'Sun.{scene_change:03d}']
         scene.camera = camera
-        if (i % levels) == 0:
+        if (i % levels) == 0 and i != 0:
             change_of_scene(i/levels, num_scenes)
             level = 0
             scene_change += 1
