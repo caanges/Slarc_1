@@ -280,7 +280,7 @@ def Generate_data(num, ugv, key_points, Sun, camera, scene, num_attr, level, sce
 
 #_____main_____#
 def main():
-    num_scenes = 8
+    num_scenes = 1
     levels = 5
     level = 0
     tot_dif_num = levels * num_scenes
