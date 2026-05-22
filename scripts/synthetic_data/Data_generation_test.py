@@ -355,6 +355,9 @@ def Generate_data(num, ugv, key_points, SUN, camera, scene):
                     composite_node.inputs['Image']
                 )
 
+                scene.render.filepath = img_path
+                bpy.ops.render.render(write_still=True)
+
             else:
 
                 # No blur
