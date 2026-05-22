@@ -5,11 +5,11 @@ import os
 OUT_DIR = r"C:\Data_dva513\Data\classified_data"
 
 def load_data(pic_id, labeling_id):
-    img_path =r"C:\Data_dva513\Data\Data_img\Gen_data\images"
+    img_path =r"C:\Data_dva513\Data\Train_val_test\images\val"
     image_id = f"img{labeling_id}_{pic_id:04d}.png"
     full_path = os.path.join(img_path, image_id)
 
-    labeling_path = r"C:\Data_dva513\Data\Data_img\Gen_data\text"
+    labeling_path = r"C:\Data_dva513\Data\Train_val_test\labels\val"
     labeling_id = f"img{labeling_id}_{pic_id:04d}.txt"
     ful_label_path = os.path.join(labeling_path, labeling_id)
 
@@ -69,9 +69,12 @@ def save_img(out_path, img):
     cv2.imwrite(out_path, img)
 
 def main():
-    number_of_scenes = 5
-    size_per_scene = 250
-    for j in range(0, number_of_scenes):
+    start_scene = 7 #0-5
+    start_scene_levels = start_scene * 5
+    number_of_scenes = 8 #1-6
+    number_of_levels = number_of_scenes * 5
+    size_per_scene = 50
+    for j in range(start_scene_levels, number_of_levels):
         for i in range(0, size_per_scene):
             load_data(i, j)
     print("Done")
