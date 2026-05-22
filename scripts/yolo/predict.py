@@ -1,5 +1,6 @@
 # pip install opencv-contrib-python
 
+#pip install opencv-contrib-python
 import cv2
 import numpy as np
 from ultralytics import YOLO
@@ -160,6 +161,7 @@ if result.keypoints is not None and len(result.keypoints.xy) > 0:
             # R[:,0]
             # R[:,1]
             # -R[:,2]
+            # depending on your robot coordinate system
 
             forward_yolo = R_yolo[:, 2]
 
@@ -238,6 +240,7 @@ print("Rejected candidates:", len(rejected))
 # ============================================
 
 forward_vectors = []
+forward_aruco = None
 
 if ids is not None:
 
@@ -294,6 +297,7 @@ if ids is not None:
 
         # ============================================
         # DRAW AXIS
+        # DRAW ARUCO AXIS
         # ============================================
 
         cv2.drawFrameAxes(
@@ -322,6 +326,7 @@ if ids is not None:
         # ============================================
 
         # You may later need:
+        # May need:
         # R_gt[:,0]
         # R_gt[:,1]
         # -R_gt[:,2]
@@ -343,6 +348,7 @@ if ids is not None:
         forward_vectors.append(
             forward_aruco
         )
+        break
 
 else:
 
@@ -396,6 +402,12 @@ if (
     dot = np.dot(
         forward_yolo,
         avg_forward
+    forward_aruco is not None
+):
+
+    dot = np.dot(
+        forward_yolo,
+        forward_aruco
     )
 
     dot = np.clip(
@@ -485,3 +497,78 @@ while True:
 cv2.destroyAllWindows()
 
 cv2.waitKey(1)
+
+new_w = int(w * scale)
+
+new_h = int(h * scale)
+
+resized_img = cv2.resize(
+    annotated,
+    (new_w, new_h)
+)
+
+# ============================================
+# SHOW
+# ============================================
+
+cv2.imshow(
+    "YOLO vs ARUCO",
+    resized_img
+)
+
+print("\nPress Q or ESC to quit")
+
+while True:
+
+    key = cv2.waitKey(1)
+
+    # ESC
+    if key == 27:
+        break
+
+    # Q
+    if key == ord("q"):
+        break
+
+cv2.destroyAllWindows()
+
+cv2.waitKey(1)
+
+scale = min(
+    screen_width / w,
+    screen_height / h
+)
+
+new_w = int(w * scale)
+
+new_h = int(h * scale)
+
+resized_img = cv2.resize(
+    annotated,
+    (new_w, new_h)
+)
+
+# ============================================
+# SHOW
+# ============================================
+
+cv2.imshow(
+    "YOLO vs ARUCO",
+    resized_img
+)
+
+print("\nPress Q or ESC to quit")
+
+while True:
+
+    key = cv2.waitKey(1)
+
+    # ESC
+    if key == 27:
+        break
+
+    # Q
+    if key == ord("q"):
+        break
+
+cv2.destroyAllWindows()
