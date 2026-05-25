@@ -534,6 +534,42 @@ cv2.destroyAllWindows()
 
 cv2.waitKey(1)
 
+new_w = int(w * scale)
+
+new_h = int(h * scale)
+
+resized_img = cv2.resize(
+    annotated,
+    (new_w, new_h)
+)
+
+# ============================================
+# SHOW
+# ============================================
+
+cv2.imshow(
+    "YOLO vs ARUCO",
+    resized_img
+)
+
+print("\nPress Q or ESC to quit")
+
+while True:
+
+    key = cv2.waitKey(1)
+
+    # ESC
+    if key == 27:
+        break
+
+    # Q
+    if key == ord("q"):
+        break
+
+cv2.destroyAllWindows()
+
+cv2.waitKey(1)
+
 scale = min(
     screen_width / w,
     screen_height / h
