@@ -14,19 +14,19 @@ class PnP_processing:
 
 
         self.UGV_points_3D = np.array([
-            [-5.25, -40.4, 4.5],
-            [9.75, -29.0, -2.5],
-            [-9.75, -29.0, -2.5],
-            [-22.5, -16.25, 0.0],
-            [22.5, -16.25, 0.0],
-            [-22.5, 16.25, 0.0],
-            [-15.5, 11.75, 6.0],
-            [15.5, 11.75, 6.0],
+            [5.25, 40.4, 4.5],
+            [-9.75, 29.0, -2.5],
+            [9.75, 29.0, -2.5],
             [22.5, 16.25, 0.0],
-            [-9.75, 29.25, -2.5],
-            [9.75, 29.25, -2.5],
-            [-8.5, 43.25, -5.0],
-            [8.5, 43.25, -5.0]
+            [-22.5, 16.25, 0.0],
+            [22.5, -16.25, 0.0],
+            [15.5, -11.75, 6.0],
+            [-15.5, -11.75, 6.0],
+            [-22.5, -16.25, 0.0],
+            [9.75, -29.25, -2.5],
+            [-9.75, -29.25, -2.5],
+            [8.5, -43.25, -5.0],
+            [-8.5, -43.25, -5.0]
         ] ,dtype = np.float32)
 
 
@@ -155,8 +155,8 @@ class PnP_processing:
 
 
 def main(): 
-    folder_path = r"C:\Users\een23013\Desktop\PNPtest"
-    image_folder = r"C:\Users\een23013\Desktop\PNPtest"
+    folder_path = r"C:\Users\msh23003\OneDrive - Mälardalens universitet\Documents\txtFileForTestPnP"
+    image_folder = r"C:\Users\msh23003\OneDrive - Mälardalens universitet\Documents\txtFileForTestPnP"
 
     # Instantiate the processor
     processor = PnP_processing()
