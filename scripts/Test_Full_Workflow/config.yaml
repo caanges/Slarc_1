@@ -1,0 +1,11 @@
+base_dir: "C:/Users/een23013/Desktop/testing.coco"
+
+input_json: "_annotations.coco.json"
+
+images_dir: "train"
+
+labels_dir: "Labels"
+
+dataset_dir: "dataset"
+
+train_ratio: 0.9
