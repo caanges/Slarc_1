@@ -1,0 +1,9 @@
+path: C:\Data_dva513\Data\Train_val_test #kan ändras, ska se labels och images
+
+train: images/train
+val: images/val
+
+names:
+  0: object
+
+kpt_shape: [13, 3]

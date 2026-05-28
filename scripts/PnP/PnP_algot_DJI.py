@@ -7,46 +7,49 @@ import os
 
 
 
-class PnP_processing:
+class PnP_processing_algot_DJI:
 
 
     def __init__(self):
 
 
         self.UGV_points_3D = np.array([
-            [5.25, 40.4, 4.5],
-            [-9.75, 29.0, -2.5],
-            [9.75, 29.0, -2.5],
-            [22.5, 16.25, 0.0],
-            [-22.5, 16.25, 0.0],
-            [22.5, -16.25, 0.0],
-            [15.5, -11.75, 6.0],
-            [-15.5, -11.75, 6.0],
+            [-5.25, -40.4, 4.5],
+            [9.75, -29.0, -2.5],
+            [-9.75, -29.0, -2.5],
             [-22.5, -16.25, 0.0],
-            [9.75, -29.25, -2.5],
-            [-9.75, -29.25, -2.5],
-            [8.5, -43.25, -5.0],
-            [-8.5, -43.25, -5.0]
+            [22.5, -16.25, 0.0],
+            [-22.5, 16.25, 0.0],
+            [-15.5, 11.75, 6.0],
+            [15.5, 11.75, 6.0],
+            [22.5, 16.25, 0.0],
+            [-9.75, 29.25, -2.5],
+            [9.75, 29.25, -2.5],
+            [-8.5, 43.25, -5.0],
+            [8.5, 43.25, -5.0]
         ] ,dtype = np.float32)
 
 
-        focal_length = 640 
-        center = (640 / 2, 400 / 2) 
+        w, h = 1920, 1080
+        fov_deg = 83.0
+
+        fx = w / (2 * math.tan(math.radians(fov_deg) / 2))
+        fy = fx
+
         self.camera_matrix = np.array([
-        [focal_length, 0, center[0]],
-        [0, focal_length, center[1]],
-        [0, 0, 1]
+            [fx, 0, w / 2],
+            [0, fy, h / 2],
+            [0, 0, 1]
         ], dtype=np.float32)
 
-
-        self.dist_coeffs = np.zeros((4, 1))
+        self.dist_coeffs = np.zeros((4, 1), dtype=np.float32)
 
 
         self.conf_threshold = 0.8
 
 
-        self.img_w = 640 
-        self.img_h = 400
+        self.img_w = w 
+        self.img_h = h
 
 
     def ExtractValuesFromYolo(self, file_path):
@@ -155,8 +158,8 @@ class PnP_processing:
 
 
 def main(): 
-    folder_path = r"C:\Users\msh23003\OneDrive - Mälardalens universitet\Documents\txtFileForTestPnP"
-    image_folder = r"C:\Users\msh23003\OneDrive - Mälardalens universitet\Documents\txtFileForTestPnP"
+    folder_path = r"C:\Users\een23013\Desktop\PNPtest"
+    image_folder = r"C:\Users\een23013\Desktop\PNPtest"
 
     # Instantiate the processor
     processor = PnP_processing()
