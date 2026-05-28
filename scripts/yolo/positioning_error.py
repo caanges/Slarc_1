@@ -1,12 +1,3 @@
-import cv2
-import numpy as np
-import math
-
-
-
-IMAGE_PATH = r"C:\Users\egn23014\Downloads\position_validation\position_validation\image6060.png"
-
-MARKER_SIZE = 0.18  # meters, example: 5 cm
 """DGI camera spex
 w, h = 1920, 1080 # Ändra om din video har en annan upplösning!
 fov_deg = 83.0
@@ -22,17 +13,47 @@ CAMERA_MATRIX = np.array([
 
 DIST_COEFFS = np.array([0.05, -0.05, 0, 0], dtype=np.float32) # En liten gissning på distorsion
 """
-focal_length = 640 
-center = (640 / 2, 400 / 2) 
+import cv2
+import numpy as np
+import math
+import sys
+import os
+from ultralytics import YOLO
+
+# =========================
+# IMPORT PNP FILE
+# =========================
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PNP_DIR = os.path.join(CURRENT_DIR, "..", "PnP")
+sys.path.append(PNP_DIR)
+
+from FinalePnP import PnP_processing
+
+
+# =========================
+# SETTINGS
+# =========================
+
+IMAGE_PATH = r"C:\Users\egn23014\Downloads\position_validation\position_validation\image6001.png"
+MODEL_PATH = r"C:\Users\egn23014\Slarc_1\runs\pose\runs\pose\yolov8n_custom-13\weights\best_real_world.pt"
+# YOLO label file used by your PnP code
+
+
+MARKER_SIZE = 0.18  # meters
+
+focal_length = 640
+center = (640 / 2, 400 / 2)
+
 CAMERA_MATRIX = np.array([
-[focal_length, 0, center[0]],
-[0, focal_length, center[1]],
-[0, 0, 1]
+    [798.06, 0, 623.26],
+    [0, 797.95, 392.96],
+    [0, 0, 1]
 ], dtype=np.float32)
 
+DIST_COEFFS = np.array([24.744, -41.389, -4.426e-05, 0.00094825, 21.19, 24.117, -39.56, 19.846, 0, 0, 0, 0, -0.0011862, 0.005456], dtype=np.float32)
 
-DIST_COEFFS = np.zeros((4, 1))
-
+# Offset from UGV center to ArUco tag center, in meters
 MARKER_OFFSETS = {
     0: np.array([0.00, 1.00, -0.44], dtype=np.float32),
     69: np.array([1.00, 0.00, -0.44], dtype=np.float32),
@@ -55,7 +76,7 @@ def detect_aruco_ground_truth(image):
 
     if ids is None:
         print("No ArUco markers detected.")
-        return image, []
+        return image, None, []
 
     cv2.aruco.drawDetectedMarkers(image, corners, ids)
 
@@ -72,6 +93,7 @@ def detect_aruco_ground_truth(image):
     for i, marker_id in enumerate(ids.flatten()):
         rvec = rvecs[i][0]
         tvec = tvecs[i][0]
+
         tag_center_camera = tvec
 
         cv2.drawFrameAxes(
@@ -81,6 +103,21 @@ def detect_aruco_ground_truth(image):
             rvec,
             tvec,
             MARKER_SIZE * 0.7
+        )
+
+        marker_center_px = corners[i][0].mean(axis=0)
+        marker_center_px = tuple(marker_center_px.astype(int))
+
+        cv2.circle(image, marker_center_px, 5, (0, 0, 255), -1)
+
+        cv2.putText(
+            image,
+            f"ID {marker_id}",
+            (marker_center_px[0] + 10, marker_center_px[1]),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (0, 0, 255),
+            2
         )
 
         print("\n==============================")
@@ -93,39 +130,18 @@ def detect_aruco_ground_truth(image):
             f"z={tag_center_camera[2]:.3f} m"
         )
 
-        marker_center_px = corners[i][0].mean(axis=0)
-        marker_center_px = tuple(marker_center_px.astype(int))
-
-        cv2.circle(image, marker_center_px, 6, (0, 0, 255), -1)
-
-        cv2.putText(
-            image,
-            f"ID {marker_id}",
-            (marker_center_px[0] + 10, marker_center_px[1]),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            (0, 0, 255),
-            2
-        )
-
         if marker_id not in MARKER_OFFSETS:
             print("No offset defined for this marker ID.")
             continue
 
         offset_ugv_to_marker = MARKER_OFFSETS[marker_id]
-        R_marker_to_camera = rotation_vector_to_matrix(rvec)
 
+        R_marker_to_camera = rotation_vector_to_matrix(rvec)
         offset_camera = R_marker_to_camera @ offset_ugv_to_marker
+
         ugv_center_camera = tag_center_camera - offset_camera
 
         ugv_centers.append(ugv_center_camera)
-
-        print(
-            f"UGV center estimate from marker {marker_id}: "
-            f"x={ugv_center_camera[0]:.3f} m, "
-            f"y={ugv_center_camera[1]:.3f} m, "
-            f"z={ugv_center_camera[2]:.3f} m"
-        )
 
         result = {
             "marker_id": int(marker_id),
@@ -137,46 +153,52 @@ def detect_aruco_ground_truth(image):
 
         results.append(result)
 
-
-    if len(ugv_centers) > 0:
-        final_ugv_center = np.mean(ugv_centers, axis=0)
-
-        print("\n==============================")
-        print(f"FINAL UGV CENTER from {len(ugv_centers)} marker(s)")
-        print("==============================")
         print(
-            f"x={final_ugv_center[0]:.3f} m, "
-            f"y={final_ugv_center[1]:.3f} m, "
-            f"z={final_ugv_center[2]:.3f} m"
+            f"UGV center estimate from marker {marker_id}: "
+            f"x={ugv_center_camera[0]:.3f} m, "
+            f"y={ugv_center_camera[1]:.3f} m, "
+            f"z={ugv_center_camera[2]:.3f} m"
         )
 
-        final_center_3d = final_ugv_center.reshape(1, 1, 3)
+    if len(ugv_centers) == 0:
+        return image, None, results
 
-        final_center_2d, _ = cv2.projectPoints(
-            final_center_3d,
-            np.zeros((3, 1)),
-            np.zeros((3, 1)),
-            CAMERA_MATRIX,
-            DIST_COEFFS
-        )
+    final_aruco_center = np.mean(ugv_centers, axis=0)
 
-        cx, cy = final_center_2d[0][0]
-        cx = int(cx)
-        cy = int(cy)
+    print("\n==============================")
+    print(f"FINAL ARUCO UGV CENTER from {len(ugv_centers)} marker(s)")
+    print("==============================")
+    print(
+        f"x={final_aruco_center[0]:.3f} m, "
+        f"y={final_aruco_center[1]:.3f} m, "
+        f"z={final_aruco_center[2]:.3f} m"
+    )
 
-        cv2.circle(image, (cx, cy), 4, (255, 0, 255), -1)
+    final_center_2d, _ = cv2.projectPoints(
+        final_aruco_center.reshape(1, 1, 3),
+        np.zeros((3, 1)),
+        np.zeros((3, 1)),
+        CAMERA_MATRIX,
+        DIST_COEFFS
+    )
 
-        cv2.putText(
-            image,
-            "FINAL UGV center",
-            (cx + 10, cy),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 0, 255),
-            2
-        )
+    cx, cy = final_center_2d[0][0]
+    cx = int(cx)
+    cy = int(cy)
 
-    return image, results
+    cv2.circle(image, (cx, cy), 4, (255, 0, 255), -1)
+
+    cv2.putText(
+        image,
+        "ArUco center",
+        (cx + 10, cy),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        (255, 0, 255),
+        2
+    )
+
+    return image, final_aruco_center, results
 
 
 def main():
@@ -187,9 +209,131 @@ def main():
         print(IMAGE_PATH)
         return
 
-    output_image, results = detect_aruco_ground_truth(image)
+    # =========================
+    # ARUCO GROUND TRUTH
+    # =========================
 
-    print("\nNumber of usable ArUco detections:", len(results))
+    output_image, aruco_center_m, aruco_results = detect_aruco_ground_truth(image)
+
+    print("\nNumber of usable ArUco detections:", len(aruco_results))
+
+    # =========================
+    # LOAD YOLO MODEL
+    # =========================
+
+    model = YOLO(MODEL_PATH)
+
+    # =========================
+    # RUN YOLO
+    # =========================
+
+    results = model(IMAGE_PATH, conf=0.25, imgsz=640)
+
+    # =========================
+    # CREATE PNP PROCESSOR
+    # =========================
+
+    processor = PnP_processing()
+
+    pnp_center_m = None
+
+    # =========================
+    # RUN PNP FROM YOLO KEYPOINTS
+    # =========================
+
+    for r in results:
+
+        if r.keypoints is None:
+            print("No keypoints detected.")
+            continue
+
+        keypoints_xy = r.keypoints.xy[0].cpu().numpy()
+        keypoints_conf = r.keypoints.conf[0].cpu().numpy()
+
+        rvec, tvec = processor.CalculatePoseFromKeypoints(
+            keypoints_xy,
+            keypoints_conf
+        )
+
+        if rvec is not None and tvec is not None:
+
+            # Convert cm -> meters
+            pnp_center_m = np.array(tvec).flatten() / 100.0
+
+            print("\n==============================")
+            print("PNP CENTER")
+            print("==============================")
+
+            print(
+                f"x={pnp_center_m[0]:.3f} m, "
+                f"y={pnp_center_m[1]:.3f} m, "
+                f"z={pnp_center_m[2]:.3f} m"
+            )
+
+            # =========================
+            # DRAW PNP CENTER
+            # =========================
+
+            pnp_center_cm = np.array([[0, 0, 0]], dtype=np.float32)
+
+            pnp_center_2d, _ = cv2.projectPoints(
+                pnp_center_cm,
+                rvec,
+                tvec,
+                CAMERA_MATRIX,
+                DIST_COEFFS
+            )
+
+            px, py = pnp_center_2d[0][0]
+            px = int(px)
+            py = int(py)
+
+            cv2.circle(output_image, (px, py), 4, (0, 255, 255), -1)
+
+            cv2.putText(
+                output_image,
+                "PnP center",
+                (px + 10, py),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 255, 255),
+                2
+            )
+
+    # =========================
+    # COMPARE ARUCO VS PNP
+    # =========================
+
+    if aruco_center_m is not None and pnp_center_m is not None:
+
+        error_m = np.linalg.norm(
+            pnp_center_m - aruco_center_m
+        )
+
+        print("\n==============================")
+        print("POSITION ERROR")
+        print("==============================")
+
+        print(
+            f"ArUco center: "
+            f"x={aruco_center_m[0]:.3f}, "
+            f"y={aruco_center_m[1]:.3f}, "
+            f"z={aruco_center_m[2]:.3f}"
+        )
+
+        print(
+            f"PnP center:   "
+            f"x={pnp_center_m[0]:.3f}, "
+            f"y={pnp_center_m[1]:.3f}, "
+            f"z={pnp_center_m[2]:.3f}"
+        )
+
+        print(f"\n3D position error: {error_m:.3f} m")
+        print(f"3D position error: {error_m * 100:.1f} cm")
+
+    # =========================
+    # SHOW IMAGE
+    # =========================
 
     screen_width = 1280
     screen_height = 720
@@ -202,7 +346,7 @@ def main():
 
     resized = cv2.resize(output_image, (new_w, new_h))
 
-    cv2.imshow("ArUco UGV ground truth", resized)
+    cv2.imshow("ArUco ground truth + PnP error", resized)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 

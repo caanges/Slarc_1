@@ -4,10 +4,52 @@ import math
 import os
 
 
-
-
-
 class PnP_processing:
+
+    def CalculatePoseFromKeypoints(self, keypoints_xy, keypoints_conf):
+        valid_2d_image_points = []
+        matching_3d_object_points = []
+
+        for point_idx, ((x_val, y_val), conf) in enumerate(zip(keypoints_xy, keypoints_conf)):
+
+            if point_idx >= len(self.UGV_points_3D):
+                break
+
+            print(f"Point {point_idx}: X={x_val:.3f}, Y={y_val:.3f}, Conf={conf:.2f}")
+
+            if conf >= self.conf_threshold:
+                valid_2d_image_points.append([x_val, y_val])
+                matching_3d_object_points.append(self.UGV_points_3D[point_idx])
+
+        print(f"Valid points meeting threshold: {len(valid_2d_image_points)}")
+
+        if len(valid_2d_image_points) < 4:
+            print("Not enough points detected to solve PnP.")
+            return None, None
+
+        final_3d_point = np.array(matching_3d_object_points, dtype=np.float32).reshape(-1, 1, 3)
+        final_2d_point = np.array(valid_2d_image_points, dtype=np.float32).reshape(-1, 1, 2)
+
+        try:
+            success, rvec, tvec, inliers = cv2.solvePnPRansac(
+                final_3d_point,
+                final_2d_point,
+                self.camera_matrix,
+                self.dist_coeffs,
+                iterationsCount=100,
+                reprojectionError=20.0,
+                flags=cv2.SOLVEPNP_EPNP
+            )
+
+            if success and rvec is not None and tvec is not None:
+                return rvec, tvec
+            else:
+                print("PnP failed.")
+                return None, None
+
+        except Exception as e:
+            print(f"Error in solvePnPRansac: {e}")
+            return None, None
 
 
     def __init__(self):
@@ -33,13 +75,16 @@ class PnP_processing:
         focal_length = 640 
         center = (640 / 2, 400 / 2) 
         self.camera_matrix = np.array([
-        [focal_length, 0, center[0]],
-        [0, focal_length, center[1]],
-        [0, 0, 1]
+            [798.06, 0, 623.26],
+            [0, 797.95, 392.96],
+            [0, 0, 1]
         ], dtype=np.float32)
 
+        self.dist_coeffs = np.array([24.744, -41.389, -4.426e-05, 0.00094825, 21.19, 24.117, -39.56, 19.846, 0, 0, 0, 0, -0.0011862, 0.005456], dtype=np.float32)
 
-        self.dist_coeffs = np.zeros((4, 1))
+
+
+        
 
 
         self.conf_threshold = 0.8
