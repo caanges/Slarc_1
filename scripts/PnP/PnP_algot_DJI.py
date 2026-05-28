@@ -9,6 +9,7 @@ import os
 
 class PnP_processing_algot_DJI:
 
+    
 
     def __init__(self):
 
@@ -30,27 +31,66 @@ class PnP_processing_algot_DJI:
         ] ,dtype = np.float32)
 
 
-        w, h = 1920, 1080
-        fov_deg = 83.0
-
-        fx = w / (2 * math.tan(math.radians(fov_deg) / 2))
-        fy = fx
-
         self.camera_matrix = np.array([
-            [fx, 0, w / 2],
-            [0, fy, h / 2],
+            [2060.58337, 0, 1321.95959],
+            [0, 2060.08079, 728.231313],
             [0, 0, 1]
         ], dtype=np.float32)
 
-        self.dist_coeffs = np.zeros((4, 1), dtype=np.float32)
+        self.dist_coeffs = np.array([
+            [0.00669107, -0.1080931, -0.00540403, -0.00456828, 0.12385198]
+        ], dtype=np.float32)
+
+        self.img_w = 2720
+        self.img_h = 1530
 
 
         self.conf_threshold = 0.8
 
 
-        self.img_w = w 
-        self.img_h = h
+    def CalculatePoseFromKeypoints(self, keypoints_2d, confs=None):
+        valid_2d = []
+        valid_3d = []
 
+        for i, kp in enumerate(keypoints_2d):
+            if i >= len(self.UGV_points_3D):
+                break
+
+            if confs is not None and confs[i] < self.conf_threshold:
+                continue
+
+            x_val, y_val = kp
+
+            # If keypoints are normalized 0-1, convert to pixels
+            if x_val <= 1.0 and y_val <= 1.0:
+                x_val *= self.img_w
+                y_val *= self.img_h
+
+            valid_2d.append([x_val, y_val])
+            valid_3d.append(self.UGV_points_3D[i])
+
+        if len(valid_2d) < 4:
+            print(f"Not enough points for PnP: {len(valid_2d)}")
+            return None, None
+
+        valid_2d = np.array(valid_2d, dtype=np.float32).reshape(-1, 1, 2)
+        valid_3d = np.array(valid_3d, dtype=np.float32).reshape(-1, 1, 3)
+
+        success, rvec, tvec, inliers = cv2.solvePnPRansac(
+            valid_3d,
+            valid_2d,
+            self.camera_matrix,
+            self.dist_coeffs,
+            iterationsCount=100,
+            reprojectionError=20.0,
+            flags=cv2.SOLVEPNP_EPNP
+        )
+
+        if not success:
+            print("solvePnPRansac failed")
+            return None, None
+
+        return rvec, tvec
 
     def ExtractValuesFromYolo(self, file_path):
         # Reads the .txt file that yolo has stored all data in and converts it to a list for pnp
@@ -87,8 +127,8 @@ class PnP_processing_algot_DJI:
                 print(f"Point {point_idx}: X={x_val:.3f}, Y={y_val:.3f}, Conf={conf:.2f}")
 
                 if conf >= self.conf_threshold:
-                    #x_pixel = x_val * self.img_w
-                    #y_pixel = y_val * self.img_h
+                    x_pixel = x_val * self.img_w
+                    y_pixel = y_val * self.img_h
                     Valid_2D_image_points.append([x_val, y_val])
                     matching_3D_object_points.append(self.UGV_points_3D[point_idx])
         print(f"Valid points meeting threshold: {len(Valid_2D_image_points)}")
