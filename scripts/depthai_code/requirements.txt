@@ -1,3 +1,5 @@
-depthai
+ultralytics
 opencv-python
-numpy
+pandas
+numpy<2.2
+depthai==2.27.0
