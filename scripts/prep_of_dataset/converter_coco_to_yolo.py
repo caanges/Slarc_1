@@ -1,11 +1,12 @@
-# This script converts COCO annotations to YOLO format, and also renames image files to clean names.
+# This script converts COCO annotations to YOLO format,
+# and also renames image files to clean names.
 
 import json
 import os
 
-INPUT_JSON = "_annotations.coco.json" # You need to have this file in the same folder as the script (get it from the roboflow website or the google drive)
-OUTPUT_DIR = "labels"
-IMAGES_DIR = "images" # You need to have the actual image files in this folder (you get them with the same download as the annotations)
+INPUT_JSON = r"C:\Users\egn23014\Downloads\testing.coco (2)\_annotations.coco.json"
+OUTPUT_DIR = r"C:\Users\egn23014\Downloads\testing.coco (2)\Labels"
+IMAGES_DIR = r"C:\Users\egn23014\Downloads\testing.coco (2)\train"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -33,10 +34,16 @@ for img_id, anns in anns_per_image.items():
 
     short_name = name_no_ext
 
-    # ---- FIND REAL FILE IN FOLDER ----
+    # ---- FIND REAL FILE IN FOLDER (EXACT MATCH) ----
     actual_file = None
+
     for f in os.listdir(IMAGES_DIR):
-        if f.startswith(short_name):
+        file_no_ext, file_ext = os.path.splitext(f)
+
+        clean_file_no_ext = file_no_ext.split(".rf.")[0]
+        clean_file_no_ext = clean_file_no_ext.replace("_png", "").replace("_jpg", "")
+
+        if clean_file_no_ext == short_name:
             actual_file = f
             break
 
@@ -52,7 +59,7 @@ for img_id, anns in anns_per_image.items():
     new_img_name = short_name + ext
     new_img_path = os.path.join(IMAGES_DIR, new_img_name)
 
-    # ---- SAFE RENAME (NO STACKING) ----
+    # ---- SAFE RENAME ----
     if actual_file != new_img_name:
         if not os.path.exists(new_img_path):
             os.rename(old_img_path, new_img_path)
@@ -65,7 +72,9 @@ for img_id, anns in anns_per_image.items():
 
     with open(txt_path, "w") as f:
         for ann in anns:
-            cls = ann["category_id"]
+
+            # YOLO classes should start at 0
+            cls = 0
 
             # bbox
             x, y, w, h = map(float, ann["bbox"])
@@ -83,8 +92,11 @@ for img_id, anns in anns_per_image.items():
                 kx = float(kpts[i]) / img_w
                 ky = float(kpts[i + 1]) / img_h
                 v = int(kpts[i + 2])
+
                 kpts_out.extend([kx, ky, v])
 
             # write YOLO line
             line = [cls, x_center, y_center, w, h] + kpts_out
             f.write(" ".join(map(str, line)) + "\n")
+
+print("Conversion complete.")
